@@ -12,7 +12,6 @@ loadi(55,68);
 
 call MOD_7;
 
-// breakpoint;
 
 // Idle is the first process in the process table
 PTBR = PAGE_TABLE_BASE;

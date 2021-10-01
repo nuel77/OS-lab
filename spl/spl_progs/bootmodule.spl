@@ -1,5 +1,4 @@
 // INIT Program
-
 loadi(65,7);
 loadi(66,8);
 
@@ -10,42 +9,34 @@ loadi(83,69);
 loadi(90,70);
 
 // INT10
-
 loadi(22,35);
 loadi(23,36);
 
 // INT7
-
 loadi(16,29);
 loadi(17,30);
 
 // Exception Handler
-
 loadi(2, 15);
 loadi(3, 16);
 
 // MODULE 0
-
 loadi(40,53);
 loadi(41,54);
 
 // MODULE 4
-
-loadi(61,48);
-loadi(62,49);
+loadi(48,61);
+loadi(49,62);
 
 // MODULE 5
-
 loadi(50,63);
 loadi(51,64);
 
 // Library Code
-
 loadi(63,13);
 loadi(64,14);
 
 // Timer Interrupt
-
 loadi(4, 17);
 loadi(5, 18);
 
@@ -192,5 +183,6 @@ endwhile;
 [93*512] = [90 * 512 + 1]; //entry for prime program.
 
 [TERMINAL_STATUS_TABLE + 0] = 0;
+
 
 return;
