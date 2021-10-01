@@ -1,27 +1,57 @@
-///Device manager///
+///Device Manager Module///
 
 alias functionNum R1;
 alias currentPID R2;
-alias word R3;  
-if(functionNum == 3) then
 
+//write to terminal
+if(functionNum == 3) then
+    alias word R3;  
+    //Acquiring the terminal
 	multipush(R1,R2,R3);
-	R1 = 8;
-	R2 = [SYSTEM_STATUS_TABLE + 1];
-	call MOD_0;
+	R1 = 8; //Acquire terminal function number 
+	R2 = [SYSTEM_STATUS_TABLE + 1]; //process Id of current process
+	call MOD_0; //call resource manager module
 	multipop(R1,R2,R3);
 
-    
 	print word;
 
+    //releasing the terminal
 	multipush(R1,R2,R3);
-	R1 = 9;
-	R2 = [SYSTEM_STATUS_TABLE + 1];
-	call MOD_0;
-  
+	R1 = 9; //Release terminal function number 
+	R2 = [SYSTEM_STATUS_TABLE + 1]; //process Id of current process
+	call MOD_0; //call resource manager module
 	multipop(R1,R2,R3);
 
 	return;
-else
-    return;
 endif; 
+
+//read from terminal
+if(functionNum == 4) then
+    //Acquiring the terminal
+    multipush(R1,R2,R3);
+    functionNum = 8; //Acquire terminal function number 
+    currentPID = [SYSTEM_STATUS_TABLE + 1];//process Id of current process
+    call MOD_0;//call resource manager module
+    multipop(R1,R2,R3);
+    
+    // read from terminal
+    read;
+
+    //set state of current process as waiting for terminal interrupt
+    //so it wont be scheduled
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = WAIT_TERMINAL;
+
+    // invoking Scheduler Module
+    multipush(R1,R2,R3);
+    call MOD_5;
+    multipop(R1,R2,R3);
+
+    //The logical address of the word where the data has to be stored is in R3. Convert this to physical address.
+    alias physicalAddress R4;
+	physicalAddress = [PTBR + (2*R3)/512]*512 + R3%512;
+    //store the value present in input buffer field of process table to the obtained physical address of the word.
+	[physicalAddress] = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE +1]*16 + 8];
+    return;
+endif;
+
+return;

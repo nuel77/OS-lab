@@ -1,2 +1,3 @@
 print "Exception!";
+breakpoint;
 halt;

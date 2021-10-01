@@ -2,10 +2,10 @@
 loadi(65,7);
 loadi(66,8);
 
-// User Program even
+//User Program even
 loadi(83,69);
 
-// user program prime
+//user program prime
 loadi(90,70);
 
 // INT10
@@ -15,6 +15,14 @@ loadi(23,36);
 // INT7
 loadi(16,29);
 loadi(17,30);
+
+//INT6
+loadi(14,27);
+loadi(15,28);
+
+//Console interrupt Handler
+loadi(8,21);
+loadi(9,22);
 
 // Exception Handler
 loadi(2, 15);
@@ -41,7 +49,6 @@ loadi(4, 17);
 loadi(5, 18);
 
 // PAGE TABLE FOR INIT
-
 PTBR = PAGE_TABLE_BASE+20;  // 0-19 reserved by idle process
 PTLR = 10;
 
@@ -171,7 +178,7 @@ PTLR = 10;
 
 //set all other proceses with "terminated" status
 alias counter R0;
-counter = 4;
+counter = 2;
 while(counter <= 15) do
   [PROCESS_TABLE + (counter * 16) + 4] = TERMINATED;
   counter = counter + 1;

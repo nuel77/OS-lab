@@ -1,12 +1,13 @@
-//context: SP currenly points to kernel stack//
-//------------------------------------------------//
+///Scheduler///
+
+//SP currenly points to kernel stack//
 
 //obtain pid of current processs from system Status Table .
 alias currentPID R0;
 currentPID = [SYSTEM_STATUS_TABLE + 1];
 
 //Push the BP of the current process on top of the kernel stack
-//push(BP)?
+multipush(BP);
 //Obtain the Process Table entry corresponding to the current PID.
 alias process_table_entry R1;
 process_table_entry = PROCESS_TABLE + (currentPID * 16);
@@ -23,11 +24,15 @@ count = 1;
 //Iterate through the Process Table entries, starting from the succeeding entry
 //of the current process to find a process in READY or CREATED state.
 newPID = currentPID + 1;
-while((count <= 16) && ([PROCESS_TABLE + (newPID*16) + 4] == TERMINATED)) do
+while((count <= 16) && 
+([PROCESS_TABLE + (newPID*16) + 4] != READY &&
+[PROCESS_TABLE + (newPID*16) + 4] != CREATED )) do
 	newPID = ((newPID + 1)%16);
 	count = count + 1;
 endwhile;
-//havnet find any read / created process, switch to idle.
+///Scheduler Moduler///
+
+//havnet find any ready / created process, switch to idle.
 if(count == 17) then
 	newPID = 0;
 endif;
@@ -56,6 +61,5 @@ SP =  [new_process_table + 11] * 512 + [new_process_table + 12] ;
 [new_process_table + 4] = RUNNING;
 
 //Restore the BP of the new process from the top of it's kernel stack.
-// BP = [SP];
-// SP = SP - 1;
+multipop(BP);
 return; 
