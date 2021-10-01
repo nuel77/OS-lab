@@ -23,7 +23,9 @@ count = 1;
 //Iterate through the Process Table entries, starting from the succeeding entry
 //of the current process to find a process in READY or CREATED state.
 newPID = currentPID + 1;
-while((count <= 16) && ([PROCESS_TABLE + (newPID*16) + 4] == TERMINATED)) do
+while((count <= 16) && 
+([PROCESS_TABLE + (newPID*16) + 4] !=  READY &&
+[PROCESS_TABLE + (newPID*16) + 4] != CREATED) ) do
 	newPID = ((newPID + 1)%16);
 	count = count + 1;
 endwhile;
