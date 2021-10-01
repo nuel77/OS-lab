@@ -8,5 +8,7 @@ load --int=10 ../spl/spl_progs/int10.xsm
 load --int=7 ../spl/spl_progs/int7.xsm
 load --module 7 ../spl/spl_progs/bootmodule.xsm
 load --module 5 ../spl/spl_progs/mod5.xsm
+load --module 4 ../spl/spl_progs/mod4.xsm
+load --module 0 ../spl/spl_progs/mod0.xsm
 load --exhandler ../spl/spl_progs/haltprog.xsm
 load --library ../expl/library.lib

@@ -6,7 +6,7 @@ SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
 backup; 
 alias currentPID R0;
 currentPID = [SYSTEM_STATUS_TABLE+1];
-breakpoint;
+//breakpoint;
 alias process_table_entry R1;
 //get the address of the process table for current process
 process_table_entry = PROCESS_TABLE + (currentPID * 16);
@@ -20,5 +20,5 @@ restore;
 SP = [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13];
 //set mode flag =0 (mode flag is -1 if the process is executing in system call ; 0 otherwise)
 [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 0;
-breakpoint;
+//breakpoint;
 ireturn;
