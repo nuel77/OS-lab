@@ -72,7 +72,7 @@ PTBR = PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20;
 
 multipush(R0,R1,R2,R3);
 
-// call "Get Free Page" function from memory manager (MOD_2) (fn no. = 1)
+// call "Get Free Page" function from memory manager (MOD_2) (fn no. = 1) (return value in R0)
 R1 = 1;
 // Stack 
 call MOD_2;
