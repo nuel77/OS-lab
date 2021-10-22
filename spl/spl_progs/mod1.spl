@@ -19,11 +19,11 @@ endif;
 // Exit Process Function (function no = 3)
 if (functionNum == 3) then
     multipush(R1,R2);
-    R1 = 4;
+    R1 = 4; //FREE PAGE TABLE FUNC
     call MOD_1;
     multipop(R1,R2);
     multipush(R1,R2);
-    R1 = 2;
+    R1 = 2; //FREE USER AREA PAGE
     call MOD_1;
     multipop(R1,R2);
     [PROCESS_TABLE + PID*16 + 4] = TERMINATED;

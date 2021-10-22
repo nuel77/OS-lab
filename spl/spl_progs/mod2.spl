@@ -20,8 +20,8 @@ if (functionNum == 1) then
     // dec MEM_FREE_COUNT since free page will be used by this process
     [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
     
-    // loop through entries in memory free list
-    alias freePageNum R0;
+    // loop through entries in memory free list to get first free page
+    alias freePageNum R0; //return value in R0
     freePageNum = 0;
     while (freePageNum <= 127) do
         if ([MEMORY_FREE_LIST + freePageNum] == 0) then
@@ -37,8 +37,10 @@ endif;
 // Release Page function
 if (functionNum == 2) then
     multipush(R1,R2);
+    //decrement  MEMORY_FREE_LIST
     [MEMORY_FREE_LIST + pageNum] = [MEMORY_FREE_LIST + pageNum] - 1;
     if ([MEMORY_FREE_LIST + pageNum] == 0) then
+        //inc FREE_PAGE_NUM
         [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] + 1;
         alias count R1;
         count = 0;
