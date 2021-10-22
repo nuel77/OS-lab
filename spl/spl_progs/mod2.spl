@@ -1,0 +1,59 @@
+//// MEMORY MANAGER MODULE ////
+
+alias functionNum R1;
+alias pageNum R2;
+
+// Get Free Page function
+if (functionNum == 1) then
+    // inc WAIT_MEM_COUNT
+    [SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] + 1;
+    // busy loop (wait until there is free memory)
+    while([SYSTEM_STATUS_TABLE + 2] == 0) do
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = WAIT_MEM;
+        multipush(R1,R2);
+        // call scheduler
+        print "calling scheduler";
+        call MOD_5;
+        multipop(R1,R2);
+    endwhile;
+    // dec WAIT_MEM_COUNT
+    [SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] - 1;
+    // dec MEM_FREE_COUNT since free page will be used by this process
+    [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
+    
+    // loop through entries in memory free list
+    alias freePageNum R0;
+    freePageNum = 0;
+    while (freePageNum <= 127) do
+        if ([MEMORY_FREE_LIST + freePageNum] == 0) then
+            [MEMORY_FREE_LIST + freePageNum] = 1;
+            print "after getfree";
+            breakpoint;
+            return;
+        endif;
+        freePageNum = freePageNum+1;
+    endwhile;
+    return;
+endif;
+
+// Release Page function
+if (functionNum == 2) then
+    multipush(R1,R2);
+    [MEMORY_FREE_LIST + pageNum] = [MEMORY_FREE_LIST + pageNum] - 1;
+    if ([MEMORY_FREE_LIST + pageNum] == 0) then
+        [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] + 1;
+        alias count R1;
+        count = 0;
+        // Search for processes in WAIT_MEM state and switch them to READY state
+        while(count <= 15) do
+            if([PROCESS_TABLE + (count*16) + 4] == WAIT_MEM) then
+                [PROCESS_TABLE + (count*16) + 4] = READY; 
+            endif;
+            count = count + 1;
+        endwhile;
+    endif;
+    multipop(R1,R2);
+    print "after relpage";
+    breakpoint;
+    return;
+endif;
