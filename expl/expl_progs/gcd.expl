@@ -7,7 +7,6 @@ decl
     int temp,ret;
 enddecl
 begin
-    breakpoint;
     if (b == 0) then
         ret = a;
     else

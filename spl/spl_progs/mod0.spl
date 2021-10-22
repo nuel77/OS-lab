@@ -17,13 +17,11 @@ if(functionNum == 8)then
 else
 
 	if(functionNum == 9) then
-		breakpoint;
 		if(currentPID != [TERMINAL_STATUS_TABLE + 1]) then
 			R0 = -1;
 			return;
 		else
 			[TERMINAL_STATUS_TABLE + 0] = 0;
-			breakpoint;
 			alias counter R6;
 			counter = 0;
 				while(counter <= 15) do
