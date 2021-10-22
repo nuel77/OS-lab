@@ -26,7 +26,6 @@ alias inodeIndex R2;
 inodeIndex = 0;
 while(inodeIndex <= 59) do
 	if(([INODE_TABLE + inodeIndex*16 + 1] == fileName) && ([INODE_TABLE + inodeIndex*16 + 0] == EXEC)) then
-        print "inode found";
 		break;
 	else
 		inodeIndex = inodeIndex + 1;
@@ -49,7 +48,6 @@ R1 = 3; //function number for exit
 R2 = [SYSTEM_STATUS_TABLE + 1]; //pid of process to be terminated
 call MOD_1;
 multipop(R0,R1,R2);
-print "After exit";
 
 // reclaim user area page of terminated process 
 alias UserAreaPageNum R3;
@@ -105,7 +103,6 @@ call MOD_2;
 multipop(R0,R1,R2,R3);
 
 
-print "Before Code load";
 alias noOfBlocks R4;
 noOfBlocks = [INODE_TABLE + inodeIndex*16 + 2]/512 + 1;
 
@@ -125,7 +122,6 @@ while(noOfBlocks>0) do
     i=i+2;
     dataBlockNum = dataBlockNum + 1;
 endwhile;
-print "Loaded code";
 multipop(R0,R1,R2,R3,R4);
 
 // Entry point stored to top of user stack

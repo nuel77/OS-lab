@@ -12,7 +12,6 @@ if (functionNum == 1) then
         [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = WAIT_MEM;
         multipush(R1,R2);
         // call scheduler
-        print "calling scheduler";
         call MOD_5;
         multipop(R1,R2);
     endwhile;
@@ -27,7 +26,6 @@ if (functionNum == 1) then
     while (freePageNum <= 127) do
         if ([MEMORY_FREE_LIST + freePageNum] == 0) then
             [MEMORY_FREE_LIST + freePageNum] = 1;
-            print "after getfree";
             breakpoint;
             return;
         endif;
@@ -53,7 +51,5 @@ if (functionNum == 2) then
         endwhile;
     endif;
     multipop(R1,R2);
-    print "after relpage";
-    breakpoint;
     return;
 endif;

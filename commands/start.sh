@@ -1,7 +1,9 @@
 #!/bin/bash
 cd ../expl
 echo COMPILING INIT...
-./expl expl_progs/gcd.expl
+./expl expl_progs/init_stage17.expl
+echo COMPILING EVEN...
+./expl expl_progs/even.expl
 
 cd ../spl
 echo OS_STARTUP COMPILING ...

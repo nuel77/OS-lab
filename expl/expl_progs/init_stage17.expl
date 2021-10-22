@@ -1,0 +1,15 @@
+int main(){
+decl
+    str fileName;
+    int t;
+enddecl
+begin
+    t = exposcall("Write", -2, "Enter file:");
+    t = exposcall("Read", -1, fileName);
+    t = exposcall("Exec", fileName);
+    if (t == -1) then
+        t = exposcall("Write", -2, "Not Found");
+    endif;
+    return 0;
+end
+}

@@ -12,14 +12,12 @@ if (functionNum == 2) then
     R2 = [PROCESS_TABLE + PID*16 + 11]; //process table has 16 entries
     //releasepage (userAreaPageNum) is function 2 in memory manager  module
     call MOD_2;
-    print "UAPage released";
     multipop(R1,R2);
     return;
 endif;
 
 // Exit Process Function (function no = 3)
 if (functionNum == 3) then
-    print "In exit process";
     multipush(R1,R2);
     R1 = 4;
     call MOD_1;
@@ -29,7 +27,6 @@ if (functionNum == 3) then
     call MOD_1;
     multipop(R1,R2);
     [PROCESS_TABLE + PID*16 + 4] = TERMINATED;
-    print "Exit proc return";
     return;
 endif;
 
@@ -51,7 +48,6 @@ if (functionNum == 4) then
             R1 = 2;
             R2 = [PTBR + i];
             // releasepage(pg no in R2)
-            print "Page released";
             call MOD_2;
             [PTBR + i] = -1;
             [PTBR + i + 1] = "0000";

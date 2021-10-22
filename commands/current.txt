@@ -1,4 +1,4 @@
-load --init ../expl/expl_progs/gcd.xsm
+load --init ../expl/expl_progs/init_stage17.xsm
 load --os ../spl/spl_progs/os_startup.xsm
 load --idle ../expl/samples/idle.xsm 
 load --exec ../expl/expl_progs/even.xsm
