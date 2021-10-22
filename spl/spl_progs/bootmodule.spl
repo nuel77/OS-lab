@@ -26,6 +26,10 @@ loadi(23,36);
 loadi(4, 17);
 loadi(5, 18);
 
+// INT Disk
+loadi(6, 19);
+loadi(7, 20);
+
 //Console interrupt Handler
 loadi(8,21);
 loadi(9,22);
@@ -135,6 +139,9 @@ endwhile;
 
 // Setting STATUS field in terminal status table to 0 (indicating terminal free for first process)
 [TERMINAL_STATUS_TABLE] = 0;
+
+// Setting STATUS field in disk status table to 0 (indicating disk free for first process)
+[DISK_STATUS_TABLE] = 0;
 
 i = 0;
 //pages reservered by OS total 128 pages, 512 words per page

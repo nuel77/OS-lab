@@ -1,37 +1,64 @@
-///Resource Manager///
+/// RESOURCE MANAGER MODULE 
 
 alias functionNum R1;
 alias currentPID R2;
 
-if(functionNum == 8)then
-	while([TERMINAL_STATUS_TABLE + 0] == 1) do
-		[PROCESS_TABLE + currentPID*16 + 4] = WAIT_TERMINAL;
-		multipush(R1,R2);
-		call MOD_5;
-		multipop(R1,R2);
-	endwhile;
+// ACQUIRE TERMINAL
+if (functionNum == 8) then      
+    while([TERMINAL_STATUS_TABLE] == 1) do
+        [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 4] = WAIT_TERMINAL;     // Set state of current process to 'waiting for terminal resource'
+        multipush(R1,R2,R3);
+        call MOD_5;             // Call scheduler module
+        multipop(R1,R2,R3);
+    endwhile;
+    [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 4] = 1;     // Set state of current process to user mode
+    [TERMINAL_STATUS_TABLE + 1] = [SYSTEM_STATUS_TABLE + 1];    // Terminal is being used by the current process
+    [TERMINAL_STATUS_TABLE] = 1;                                // Terminal acquired
+    return;
+endif;
 
-	[TERMINAL_STATUS_TABLE + 0] = 1;
-	[TERMINAL_STATUS_TABLE + 1] = currentPID;
-	return;
-else
 
-	if(functionNum == 9) then
-		if(currentPID != [TERMINAL_STATUS_TABLE + 1]) then
-			R0 = -1;
-			return;
-		else
-			[TERMINAL_STATUS_TABLE + 0] = 0;
-			alias counter R6;
-			counter = 0;
-				while(counter <= 15) do
-					if([PROCESS_TABLE + (counter*16) + 4] == WAIT_TERMINAL) then
-						[PROCESS_TABLE + (counter*16) + 4] = READY;
-					endif;
-					counter= counter + 1;
-				endwhile;
-			R0 = 0;
-			return;
-		endif;
-	endif;
-endif; 
+
+// RELEASE TERMINAL
+if (functionNum == 9) then
+    alias retVal R0;
+    if (R2 != [TERMINAL_STATUS_TABLE + 1]) then      // check if the terminal was acquired by the currently runnning process
+        retVal = -1;        // -1 return value indicates that the process tried to release the terminal, without acquiring it
+        return;
+    endif;
+    [TERMINAL_STATUS_TABLE] = 0; // STATUS field set to zero --> Terminal is now released
+
+    // Search for processes in WAIT_TERMINAL state
+    alias count R3;
+    count = 0;
+    while(count <= 15) do
+        if ([PROCESS_TABLE + count*16 + 4] == WAIT_TERMINAL) then
+            [PROCESS_TABLE + count*16 + 4] = READY;
+        endif;
+        count = count + 1;
+    endwhile;
+    retVal = 0;             // success
+    return;
+endif;
+
+
+
+// ACQUIRE DISK
+if (functionNum == 3) then
+    // If disk is not free, calling process is set to 'WAIT_DISK'
+    // and the scheduleris invoked
+    if ([DISK_STATUS_TABLE + 0] == 1) then
+        [PROCESS_TABLE + currentPID*16 + 4] = WAIT_DISK;
+        // call scheduler
+        multipush(R1,R2);
+        call MOD_5;
+        multipop(R1,R2);
+    endif;
+    // STATUS field (disk in use)
+    [DISK_STATUS_TABLE + 0] = 1;
+    // PID field
+    [DISK_STATUS_TABLE + 4] = currentPID;
+    return;
+endif;
+
+

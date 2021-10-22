@@ -54,4 +54,32 @@ if(functionNum == 4) then
     return;
 endif;
 
+// DISK LOAD
+if (functionNum == 2) then
+    // call Acquire Disk (fn no. 3 on resource manager module)
+    multipush(R1,R2,R3,R4);
+    R1 = 3;
+    call MOD_0;
+    multipop(R1,R2,R3,R4);
+
+    // Update disk status table
+    // load/store
+	[DISK_STATUS_TABLE + 1] = 0;
+    // set Page no.
+	[DISK_STATUS_TABLE + 2] = R3; //destination memory page (from int9 interrupt)
+    // block no.
+	[DISK_STATUS_TABLE + 3] = R4; //source disk block
+
+    // load disk block to memory page
+    load(R3,R4);
+
+    // wait for disk access, call scheduler
+    [PROCESS_TABLE + currentPID*16 + 4] = WAIT_DISK;
+    multipush(R1,R2,R3,R4);
+    //call the scheduler
+    call MOD_5;
+    multipop(R1,R2,R3,R4);
+endif;
+
+return;
 return;

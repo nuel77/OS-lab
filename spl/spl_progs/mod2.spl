@@ -26,7 +26,6 @@ if (functionNum == 1) then
     while (freePageNum <= 127) do
         if ([MEMORY_FREE_LIST + freePageNum] == 0) then
             [MEMORY_FREE_LIST + freePageNum] = 1;
-            breakpoint;
             return;
         endif;
         freePageNum = freePageNum+1;
@@ -53,6 +52,5 @@ if (functionNum == 2) then
         endwhile;
     endif;
     multipop(R1,R2);
-    breakpoint;
     return;
 endif;
