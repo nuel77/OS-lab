@@ -16,5 +16,5 @@ load --module 2 ../spl/spl_progs/mod2.xsm
 load --module 4 ../spl/spl_progs/mod4.xsm
 load --module 5 ../spl/spl_progs/mod5.xsm
 load --module 7 ../spl/spl_progs/bootmodule.xsm
-load --exhandler ../spl/spl_progs/haltprog.xsm
+load --exhandler ../spl/spl_progs/exception.xsm
 load --library ../expl/library.lib

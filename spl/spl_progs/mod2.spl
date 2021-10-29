@@ -1,10 +1,11 @@
 //// MEMORY MANAGER MODULE ////
 
 alias functionNum R1;
-alias pageNum R2;
+
 
 // Get Free Page function
 if (functionNum == 1) then
+    alias pageNum R2;
     // inc WAIT_MEM_COUNT
     [SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] + 1;
     // busy loop (wait until there is free memory)
@@ -35,6 +36,7 @@ endif;
 
 // Release Page function
 if (functionNum == 2) then
+     alias pageNum R2;
     multipush(R1,R2);
     //decrement  MEMORY_FREE_LIST
     [MEMORY_FREE_LIST + pageNum] = [MEMORY_FREE_LIST + pageNum] - 1;
@@ -52,5 +54,55 @@ if (functionNum == 2) then
         endwhile;
     endif;
     multipop(R1,R2);
+    return;
+endif;
+
+
+// Release Block, R2 is page num
+if (functionNum == 4) then
+    [DISK_FREE_LIST + R2] = [DISK_FREE_LIST + R2] - 1;
+    return;
+endif;
+
+// Get Code Page function
+if(functionNum == 5) then
+    alias blockNum R2;
+    alias i R5;
+    alias j R6;
+    alias pgNum R7;
+    i = 0;
+    while(i<16) do
+        j = 2;
+        while(j<10) do
+            // if the block is present in DISK MAP TABLE of any process and the page table entry is valid
+            if (([DISK_MAP_TABLE + i*10 + j] == blockNum) && ([[PROCESS_TABLE + i*16 + 14]+(2*j+1)] != "0000")) then
+                pgNum = [PAGE_TABLE_BASE + i*20 + j*2];
+                [MEMORY_FREE_LIST + pgNum] = [MEMORY_FREE_LIST + pgNum]+1;
+                R0 = pgNum;
+                return;
+            endif;
+            j = j + 1;
+        endwhile;
+        i = i + 1;
+    endwhile;
+    
+    if(i == 16) then
+        // get free page
+        multipush(R1,R2,R3);
+        R1 = 1;
+        call MOD_2;
+        multipop(R1,R2,R3);
+
+        // load disk
+        multipush(R0,R1,R2,R3);
+        R1 = 2;
+        R4 = blockNum;
+        R2 = [SYSTEM_STATUS_TABLE + 1];
+        R3 = R0;
+        call MOD_4;
+        multipop(R0,R1,R2,R3);
+        // return page no. (given by R0)
+    endif;
+    breakpoint;
     return;
 endif;
