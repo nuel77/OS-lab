@@ -150,7 +150,6 @@ endwhile;
 
 // Setting STATE field of all other processes as TERMINATED
 alias stateField R0;
-alias i R1;
 stateField = PROCESS_TABLE + 4 ;
 i = 0;
 //max 16 processes
