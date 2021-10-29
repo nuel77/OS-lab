@@ -79,6 +79,7 @@ if(functionNum == 5) then
                 pgNum = [PAGE_TABLE_BASE + i*20 + j*2];
                 [MEMORY_FREE_LIST + pgNum] = [MEMORY_FREE_LIST + pgNum]+1;
                 R0 = pgNum;
+                breakpoint;
                 return;
             endif;
             j = j + 1;
