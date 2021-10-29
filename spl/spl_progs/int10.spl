@@ -1,24 +1,19 @@
-//set status of currently running process as terminated.
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 4] = TERMINATED;
+// EXIT SYS CALL
 
-alias newPID R2;
-alias counter R3;
-counter=0;
-alias currentPID R0;
-currentPID = [SYSTEM_STATUS_TABLE + 1];
-//initialize newPID to another value other than currentPID.
-newPID = currentPID + 1;
-//total of 16 processes can be set up in expos
-while(counter<=15) do
-    //check if there any anyother process which can be scheduled (except for the idle process pid=0)
-	if((newPID != 0) && ([PROCESS_TABLE + (newPID*16) +4] != TERMINATED)) then
-	    break;
-	endif;
-	counter = counter + 1;
-	newPID = (newPID + 1)%16;
-endwhile;
-if(counter == 16) then
-halt;
-else
+// set mode flag to kernel
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 10;
+
+// switch to kernel stack
+alias userSP R0;
+userSP = SP;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 - 1;
+
+// call "Exit Process" from process manager
+multipush(R0,R1);
+R1 = 3;
+call MOD_1;
+multipop(R0,R1);
+
+// call scheduler
 call MOD_5;
-endif;

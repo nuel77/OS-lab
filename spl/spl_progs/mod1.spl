@@ -5,6 +5,31 @@
 alias functionNum R1;
 alias PID R2;
 
+// Get pcb entry (function no. = 1)
+if (functionNum == 1) then
+    // loop through all process table entries to find a free entry
+    alias i R1;
+    i = 0;
+    while (i<16) do
+        if ([PROCESS_TABLE + i*16 + 4] == TERMINATED) then
+            // if found, use the entry for the child process
+            [PROCESS_TABLE + i*16 + 1] = i;
+            [PROCESS_TABLE + i*16 + 4] = ALLOCATED;
+            [PROCESS_TABLE + i*16 + 14] = PAGE_TABLE_BASE + i*20;
+            [PROCESS_TABLE + i*16 + 15] = 10;
+            // return value
+            R0 = i;
+            break;
+        endif;
+        i = i+1;
+    endwhile;
+    // if no free pcb entry, return -1
+    if (i==16) then
+        R0 = -1;
+    endif;
+    return;
+endif;
+
 // Free User Area Page function (function no = 2)
 if (functionNum == 2) then
     multipush(R1,R2);

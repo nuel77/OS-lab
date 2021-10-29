@@ -49,8 +49,10 @@ PTLR = [new_process_table + 15];
 //if the process is just created then set it as RUNNING and kernel stack = user stack pointer 
 //and return to usermode (ireturn)
 if([new_process_table + 4] == CREATED) then
-	[new_process_table + 4] = RUNNING;
 	SP = [new_process_table + 13];
+	print "in sched creat";
+    BP = [[new_process_table + 11]*512];
+	[new_process_table + 4] = RUNNING;
 	[new_process_table + 9] = 0;
 	ireturn;
 endif;
