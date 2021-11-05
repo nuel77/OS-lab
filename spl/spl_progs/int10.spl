@@ -1,0 +1,20 @@
+// EXIT SYS CALL
+
+// set mode flag to kernel
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 10;
+
+// switch to kernel stack
+alias userSP R0;
+userSP = SP;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 - 1;
+
+// call "Exit Process" from process manager
+multipush(R0,R1);
+R1 = 3;
+R2= [SYSTEM_STATUS_TABLE + 1];
+call MOD_1;
+multipop(R0,R1);
+
+// call scheduler
+call MOD_5;

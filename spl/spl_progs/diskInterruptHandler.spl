@@ -1,0 +1,28 @@
+//// DISK INTERRUPT ////
+breakpoint;
+// switch to kernel stack
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 13] = SP;
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 11]*512-1;
+backup;
+
+// set disk as free
+[DISK_STATUS_TABLE + 0] = 0;
+
+// all WAIT_DISK processes are set to READY
+alias count R1;
+count = 0;
+while(count<16) do
+    if ([PROCESS_TABLE + (count * 16) + 4] == WAIT_DISK) then
+        [PROCESS_TABLE + (count * 16) + 4] = READY;
+    endif;
+    count = count + 1;
+endwhile;
+
+// switch to user stack
+restore;
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1]*16) + 13];
+//user mode
+[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 0;
+
+breakpoint;
+ireturn;

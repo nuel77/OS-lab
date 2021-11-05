@@ -1,0 +1,41 @@
+decl
+    int a[10];
+enddecl
+int main(){
+decl
+    int n,temp,i,pass,t;
+enddecl
+begin
+    t = exposcall("Write", -2, "Enter size");
+    t = exposcall("Read", -1, n);
+    t = exposcall("Write", -2, "Enter elements");
+
+    i=0;
+    while(i<n) do
+        t = exposcall("Read", -1, a[i]);
+        i=i+1;
+    endwhile;
+    pass=0;
+    while(pass<(n-1)) do
+        i = 0;
+        while(i<(n-pass-1)) do
+            if (a[i] > a[i+1]) then
+                temp = a[i];
+                a[i] = a[i+1];
+                a[i+1] = temp;
+            endif;
+            i=i+1;
+        endwhile;
+        pass=pass+1;
+    endwhile;
+
+    t = exposcall("Write", -2, "Sorted array");
+    i=0;
+    while(i<n) do
+        t = exposcall("Write", -2, a[i]);
+        i=i+1;
+    endwhile;
+
+    return 0;
+end
+}

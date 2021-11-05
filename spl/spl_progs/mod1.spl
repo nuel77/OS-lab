@@ -1,0 +1,148 @@
+// PROCESS MANAGER MODULE //
+
+//process table
+// [0.Tick, 1.PID, 2.PPID, . ,4.STATE, . . ,11.User area page number, . .14.PTBR, 15.PTLR]
+alias functionNum R1;
+alias PID R2;
+
+// Get pcb entry (function no. = 1)
+if (functionNum == 1) then
+    // loop through all process table entries to find a free entry
+    alias i R1;
+    i = 0;
+    while (i<16) do
+        if ([PROCESS_TABLE + i*16 + 4] == TERMINATED) then
+            // if found, use the entry for the child process
+            [PROCESS_TABLE + i*16 + 1] = i;
+            [PROCESS_TABLE + i*16 + 4] = ALLOCATED;
+            [PROCESS_TABLE + i*16 + 14] = PAGE_TABLE_BASE + i*20;
+            [PROCESS_TABLE + i*16 + 15] = 10;
+            // return value
+            R0 = i;
+            break;
+        endif;
+        i = i+1;
+    endwhile;
+    // if no free pcb entry, return -1
+    if (i==16) then
+        R0 = -1;
+    endif;
+    return;
+endif;
+
+// Free User Area Page function (function no = 2)
+if (functionNum == 2) then
+    multipush(R1,R2);
+    R1 = 2;
+    R2 = [PROCESS_TABLE + PID*16 + 11]; //process table has 16 entries
+    //releasepage (userAreaPageNum) is function 2 in memory manager  module
+    call MOD_2;
+    multipop(R1,R2);
+    return;
+endif;
+
+// Exit Process Function (function no = 3)
+if (functionNum == 3) then
+    multipush(R1,R2);
+    R1 = 4;
+    call MOD_1;
+    multipop(R1,R2);
+    multipush(R1,R2);
+    R1 = 2;
+    call MOD_1;
+    multipop(R1,R2);
+    [PROCESS_TABLE + PID*16 + 4] = TERMINATED;
+     // check if exit process func. is being called by EXEC
+    //  if not called by exec, wake up all processes waiting for the dying process
+    // if ppid of the process is the dying process, then set make such processes orphan.
+    // process with STATUS=(WAIT_PROCESS, pidOfDyingProcess)
+    if ([PROCESS_TABLE + PID*16 + 9] != 9) then
+        alias i R4;
+        i = 0;
+        while (i<16) do
+            if ([PROCESS_TABLE + i*16 + 4] == WAIT_PROCESS && [PROCESS_TABLE + i*16 + 5] == PID) then
+                // READY all waiting processes
+                [PROCESS_TABLE + i*16 + 4] = READY;
+            endif;
+            if ([PROCESS_TABLE + i*16 + 2] == PID) then
+                // orphan all child processes (set their PPID to -1)
+                [PROCESS_TABLE + i*16 + 2] = -1;
+            endif;
+            i = i + 1;
+        endwhile;
+    endif;
+    return;
+endif;
+
+// Free Page Table Function (function no = 4)
+if (functionNum == 4) then
+    PTBR = [PROCESS_TABLE + PID*16 + 14];
+    PTLR = [PROCESS_TABLE + PID*16 + 15];
+    // Invalidate Library entries
+	[PTBR + 0] = -1;
+	[PTBR + 1] = "0000";
+	[PTBR + 2] = -1;
+	[PTBR + 3] = "0000";
+    // Release all other pages and invalidate page table entries
+    alias i R3;
+    i = 4;
+    while(i < PTLR*2) do
+        if ([PTBR + i] != -1) then
+            multipush(R1,R2);
+            R1 = 2;
+            R2 = [PTBR + i];
+            // releasepage(pg no in R2)
+            call MOD_2;
+            [PTBR + i] = -1;
+            [PTBR + i + 1] = "0000";
+            multipop(R1,R2);
+        endif;
+        i=i+2;
+    endwhile;
+ // check for valid entries in heap and stack entries of DISK MAP TABLE
+ // if found, invoke release block from memory manager
+    if([DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 2] != -1) then
+        multipush(R1,R2);
+        R1 = 4;
+        R2 = [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 2];
+        call MOD_2;
+        multipop(R1,R2);
+    endif;
+    if([DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 3] != -1) then
+        multipush(R1,R2);
+        R1 = 4;
+        R2 = [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 3];
+        call MOD_2;
+        multipop(R1,R2);
+    endif;
+    if([DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 8] != -1) then
+        multipush(R1,R2);
+        R1 = 4;
+        R2 = [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 8];
+        call MOD_2;
+        multipop(R1,R2);
+    endif;
+    if([DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 9] != -1) then
+        multipush(R1,R2);
+        R1 = 4;
+        R2 = [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 9];
+        call MOD_2;
+        multipop(R1,R2);
+    endif;
+
+    // Invalidate all DISK MAP TABLE entries
+
+    // heap
+    [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 2] = -1;
+    [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 3] = -1;
+    // code
+    [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 4] = -1;
+    [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 5] = -1;
+    [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 6] = -1;
+    [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 7] = -1;
+    // stack
+    [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 8] = -1;
+    [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 9] = -1;
+
+    return;
+endif;

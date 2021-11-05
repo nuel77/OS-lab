@@ -1,0 +1,30 @@
+///Console Interrupt Handler///
+
+//store user SP in the UPTR field in the process table entry 
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+
+// Switch to the kernel stack (userAreaPageNumber)*512 -1 
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 -1;
+backup;
+
+// Get the PID of the process that has aqcuired the terminal from the terminal status table, Save this as reqPID
+alias pid_from_terminal R1;
+pid_from_terminal = [TERMINAL_STATUS_TABLE + 1];
+
+// Using the reqPID obtained in the above step, get the corresponding process table entry
+alias process_from_pid R2;
+process_from_pid = PROCESS_TABLE + pid_from_terminal*16;
+
+//the input entered in the console is saved in port P0 .Copy this to input buffer field of the process table entry
+[process_from_pid + 8] = P0;
+
+multipush(R1,R2);
+R1 = 9;                                 // Release Terminal
+R2 = [TERMINAL_STATUS_TABLE + 1];       // PID of the process currently using the terminal
+call MOD_0;                             // Call Resource Manager Module
+multipop(R1,R2);
+
+restore;
+//restore SP from the UPTR field in the process table entry 
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
+ireturn;

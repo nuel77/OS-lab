@@ -1,0 +1,66 @@
+///Scheduler///
+
+//SP currenly points to kernel stack//
+
+//obtain pid of current processs from system Status Table .
+alias currentPID R0;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+
+//Push the BP of the current process on top of the kernel stack
+multipush(BP);
+//Obtain the Process Table entry corresponding to the current PID.
+alias process_table_entry R1;
+process_table_entry = PROCESS_TABLE + (currentPID * 16);
+
+//Save SP % 512 in the kernel stack pointer field, also PTBR and PTLR into the 
+//corresponding fields in the Process Table entry.
+[process_table_entry + 12] = SP % 512;
+[process_table_entry + 14] = PTBR;
+[process_table_entry + 15] = PTLR;
+
+alias newPID R3;
+alias count R2;
+count = 1;
+//Iterate through the Process Table entries, starting from the current process
+//to find a process in READY or CREATED state.
+newPID = currentPID + 1;
+while((count <= 16) && 
+([PROCESS_TABLE + (newPID*16) + 4] != READY &&
+[PROCESS_TABLE + (newPID*16) + 4] != CREATED )) do
+	newPID = ((newPID + 1)%16);
+	count = count + 1;
+endwhile;
+///Scheduler Moduler///
+
+//havnet find any ready / created process, switch to idle.
+if(count == 17) then
+	newPID = 0;
+endif;
+
+alias new_process_table R4;
+new_process_table = PROCESS_TABLE + (newPID * 16);
+
+//Restore PTBR and PTLR from the corresponding fields in the Process Table entry of the new process
+PTBR = [new_process_table + 14];
+PTLR = [new_process_table + 15];
+//Set the PID of the new process in the current PID field of the System Status Table.
+[SYSTEM_STATUS_TABLE + 1] = newPID;
+
+//if the process is just created then set it as RUNNING and kernel stack = user stack pointer 
+//and return to usermode (ireturn)
+if([new_process_table + 4] == CREATED) then
+	SP = [new_process_table + 13];
+    BP = [[new_process_table + 11]*512];
+	[new_process_table + 4] = RUNNING;
+	[new_process_table + 9] = 0;
+	ireturn;
+endif;
+
+//else we set SP as kernel stack of new process (user page area + kernel stack pointer)
+//Set the state of the new process as RUNNING and return to kernel intself. (return to timerinterupt)
+SP =  [new_process_table + 11] * 512 + [new_process_table + 12] ; 
+[new_process_table + 4] = RUNNING;
+
+//Restore the BP of the new process from the top of it's kernel stack.
+multipop(BP);
+return; 

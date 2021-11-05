@@ -1,0 +1,103 @@
+///// INTERRUPT Get pid, Get ppid, Wait, Signal System Calls /////
+
+//Getpid, Getppid, Wait and Signal are 11, 12, 13 and 14 respectively
+// stack structre = func_code | arg1 | arg2 | arg3 | return value | SP; 
+// switch to the kernel stack
+alias userSP R4;
+userSP = SP;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 - 1;
+
+// extract the system call number from the user stack
+alias syscall R5;
+syscall = [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-5)/512]*512 + (userSP-5)%512];
+
+/// Get PID ///
+if (syscall == 11) then
+    // Set mode flag
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 11;
+
+    // store PID in stack and return to user
+    [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = [SYSTEM_STATUS_TABLE+1];
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+    SP = userSP;
+    ireturn;
+
+endif;
+
+/// Get PPID ///
+if (syscall == 12) then
+    // Set mode flag
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 12;
+
+    // store PPID in stack and return to user
+    [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 2];
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+    SP = userSP;
+    ireturn;
+
+endif;
+
+/// Wait ///
+if (syscall == 13) then
+    //set mode flag
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 13;
+    
+    // get argument (PID) from user stack
+    alias waitPID R6;
+    waitPID = [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-4)/512]*512 + (userSP-4)%512];
+    
+    // if invalid case (ie terminated process or out of range), return -1 to user
+    if (waitPID == [SYSTEM_STATUS_TABLE+1] || [PROCESS_TABLE + waitPID*16 + 4] == TERMINATED || waitPID>15 || waitPID<0) then
+        [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = -1;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+        SP = userSP;
+        ireturn;
+    endif;
+    
+    // change STATE of current process to "waiting for PID ___"
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 4] = WAIT_PROCESS;
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 5] = waitPID;
+
+    // invoke scheduler
+    multipush(R4,R5,R6);
+    call MOD_5;
+    multipop(R4,R5,R6);
+
+    // store 0 in stack and return to user
+    [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = 0;
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+    SP = userSP;
+
+    ireturn;
+
+endif;
+
+/// Signal ///
+if (syscall == 14) then
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 14;
+
+    // loop through all processes and check if there are any that are waiting for signal from current process
+    alias i R6;
+    i = 0;
+    while (i<16) do
+        //check if status is WAIT_PROCESS and waitPID is current process and set the status of them to READY
+        if ([PROCESS_TABLE + i*16 + 4] == WAIT_PROCESS && [PROCESS_TABLE + i*16 + 5] == [SYSTEM_STATUS_TABLE+1]) then
+            [PROCESS_TABLE + i*16 + 4] = READY;
+        endif;
+        i = i+1;
+    endwhile;
+
+    // store 0 in stack and return to user
+    [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = 0;
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+    SP = userSP;
+    ireturn;
+
+endif;
+
+// MODE flag to USER
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+// back to user stack
+SP = userSP;
+ireturn;

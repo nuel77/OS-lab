@@ -1,0 +1,9 @@
+MOV R0, 0
+MOV R1,20
+Label:
+ADD R0,1
+SUB R1,1
+PORT P1,R0
+OUT
+JNZ R1 Label
+HALT

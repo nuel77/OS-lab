@@ -1,0 +1,52 @@
+// linked list
+
+type
+    node{
+        int data;
+        node next;
+    }
+endtype
+
+int main(){
+decl
+    node head,temp,new;
+    int s,t,n,datai;
+enddecl
+begin
+    t = initialize();
+    t = exposcall("Write",-2,"Enter size:");
+    t = exposcall("Read",-1,s);
+
+    head = null;
+    t = exposcall("Write",-2,"Enter elements:");
+
+    // accept nodes
+    while(s>0) do
+        t = exposcall("Read",-1,datai);
+
+        new = alloc();
+        new.data = datai;
+        new.next = null;
+        
+        if (head == null) then
+            head = new;
+        else
+            new.next = head;
+            head = new;            
+        endif;
+        s=s-1;
+    endwhile;
+
+    // print nodes
+    t = exposcall("Write",-2,"Printing");
+    temp = head;
+    while(temp!=null) do
+        t = exposcall("Write",-2,temp.data);
+        temp = temp.next;
+    endwhile;
+
+    free(new);
+    return 0;
+end
+}
+

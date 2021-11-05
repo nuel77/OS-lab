@@ -1,0 +1,146 @@
+///EXEC
+
+//Save user stack value for later use, set up the kernel stack. 
+alias userSP R0;
+userSP = SP;
+
+//set UPTR
+[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
+
+//set SP as userPageArea -1 (kernel stack location)
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
+
+//set mode as 9 for exec sys call
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 9;
+
+// userSP-4 contains the filename (logical address)->(physical address)?
+alias fileName R1;
+fileName = [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 2 * (userSP - 4)/ 512] * 512 + ((userSP - 4) % 512)];
+
+//Search the memory copy of the inode table for the file, 
+//If the file is not present or file is not in XEXE format return to user mode with return value -1 indicating failure
+//If the file is present, save the inode index of the file into a register for future use.
+
+//INODE [filetype, fileName, ..]
+alias inodeIndex R2;
+inodeIndex = 0;
+while(inodeIndex <= 59) do
+	if(([INODE_TABLE + inodeIndex*16 + 1] == fileName) && ([INODE_TABLE + inodeIndex*16 + 0] == EXEC)) then
+		break;
+	else
+		inodeIndex = inodeIndex + 1;
+	endif;
+endwhile;
+
+// if file not found, return -1 (in userSP-1)
+if (inodeIndex == 60) then
+	[[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 2 * (userSP - 1)/ 512] * 512 + ((userSP - 1) % 512)] = -1;
+	// switch to user stack
+    SP = userSP;
+    // switch mode to user mode
+	[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+	ireturn;
+endif;
+
+//Call the Exit Process function in process manager module to deallocate the resources and pages of the current process.
+multipush(R0,R1,R2);
+R1 = 3; //function number for exit
+R2 = [SYSTEM_STATUS_TABLE + 1]; //pid of process to be terminated
+call MOD_1;
+multipop(R0,R1,R2);
+
+// reclaim user area page of terminated process 
+alias UserAreaPageNum R3;
+UserAreaPageNum = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11];
+[MEMORY_FREE_LIST + UserAreaPageNum] = [MEMORY_FREE_LIST + UserAreaPageNum] + 1;
+[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
+
+// initialize kernel stack of new process
+SP = 512*UserAreaPageNum - 1;
+
+// set STATE and INODE_INDEX fields
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = RUNNING;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 7] = inodeIndex;
+
+PTBR = PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20;
+
+// Library
+[PTBR + 0] = 63;
+[PTBR + 1] = "0100";
+[PTBR + 2] = 64;
+[PTBR + 3] = "0100";
+
+multipush(R0,R1,R2,R3);
+
+// call "Get Free Page" function from memory manager (MOD_2) (fn no. = 1) (return value in R0)
+R1 = 1;
+// Stack 
+call MOD_2;
+[PTBR + 16] = R0;
+[PTBR + 17] = "0110";
+call MOD_2;
+[PTBR + 18] = R0;
+[PTBR + 19] = "0110";
+
+// Heap 
+//invalidate
+call MOD_2;
+[PTBR+4] = R0;
+[PTBR+5] = "0000";
+call MOD_2;
+[PTBR+6] = R0;
+[PTBR+7] = "0000";
+
+// Code 
+[PTBR+8] = -1;
+[PTBR+9] = "0000";
+[PTBR+10] = -1;
+[PTBR+11] = "0000";
+[PTBR+12] = -1;
+[PTBR+13] = "0000";
+[PTBR+14] = -1;
+[PTBR+15] = "0000";
+
+//load first code block from disk to memory
+multipop(R0,R1,R2,R3);
+
+
+alias noOfBlocks R4;
+noOfBlocks = [INODE_TABLE + inodeIndex*16 + 2]/512 + 1;
+
+// Load code blocks from disk to memory
+multipush(R0,R1,R2,R3,R4);
+// "Get Code Page" function (fn no. 5) in Memory manager module
+R1 = 5;
+R2 = [INODE_TABLE + inodeIndex*16 + 8];
+call MOD_2;
+//R0 returns the free page memory address
+[PTBR+8] = R0;
+[PTBR+9] = "0100";
+multipop(R0,R1,R2,R3,R4);
+
+// heap
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 2] = -1;
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 3] = -1;
+// code
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 4] = [INODE_TABLE + inodeIndex*16 + 8];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 5] = [INODE_TABLE + inodeIndex*16 + 9];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 6] = [INODE_TABLE + inodeIndex*16 + 10];
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 7] = [INODE_TABLE + inodeIndex*16 + 11];
+// stack
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 8] = -1;
+[DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 9] = -1;
+
+// Entry point stored to top of user stack
+[[PTBR + 16]*512] = [[PTBR + 8]*512 + 1];
+
+// Switch to user stack
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = 8*512;
+SP = 8*512;
+
+// Mode flag to user mode
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+
+PTLR = 10;
+PTBR = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 14];
+ireturn;
