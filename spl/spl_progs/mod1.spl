@@ -44,14 +44,33 @@ endif;
 // Exit Process Function (function no = 3)
 if (functionNum == 3) then
     multipush(R1,R2);
-    R1 = 4; //FREE PAGE TABLE FUNC
+    R1 = 4;
     call MOD_1;
     multipop(R1,R2);
     multipush(R1,R2);
-    R1 = 2; //FREE USER AREA PAGE
+    R1 = 2;
     call MOD_1;
     multipop(R1,R2);
     [PROCESS_TABLE + PID*16 + 4] = TERMINATED;
+     // check if exit process func. is being called by EXEC
+    //  if not called by exec, wake up all processes waiting for the dying process
+    // if ppid of the process is the dying process, then set make such processes orphan.
+    // process with STATUS=(WAIT_PROCESS, pidOfDyingProcess)
+    if ([PROCESS_TABLE + PID*16 + 9] != 9) then
+        alias i R4;
+        i = 0;
+        while (i<16) do
+            if ([PROCESS_TABLE + i*16 + 4] == WAIT_PROCESS && [PROCESS_TABLE + i*16 + 5] == PID) then
+                // READY all waiting processes
+                [PROCESS_TABLE + i*16 + 4] = READY;
+            endif;
+            if ([PROCESS_TABLE + i*16 + 2] == PID) then
+                // orphan all child processes (set their PPID to -1)
+                [PROCESS_TABLE + i*16 + 2] = -1;
+            endif;
+            i = i + 1;
+        endwhile;
+    endif;
     return;
 endif;
 
