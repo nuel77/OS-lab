@@ -1,5 +1,6 @@
 #!/bin/bash
 cd ../expl
+pwd
 echo COMPILING INIT...
 ./expl expl_progs/init.expl
 echo COMPILING FORK...
