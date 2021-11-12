@@ -3,7 +3,7 @@ load --os ../spl/spl_progs/os_startup.xsm
 load --idle ../expl/samples/idle.xsm 
 load --exec ../expl/expl_progs/create.xsm
 load --exec ../expl/expl_progs/delete.xsm
-load --exec ../expl/expl_progs/read.xsm
+load --exec ../expl/expl_progs/readAsg2.xsm
 load --int=timer ../spl/spl_progs/timer_interrupt.xsm
 load --int=disk ../spl/spl_progs/diskInterruptHandler.xsm
 load --int=console ../spl/spl_progs/consoleInterruptHandler.xsm

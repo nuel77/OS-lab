@@ -6,7 +6,6 @@ enddecl
 int main()
 {
 begin
-    temp = exposcall("Read",-1,filename);
     filedis = exposcall("Open", "numbers.dat");
     semid = exposcall("Semget");
 
