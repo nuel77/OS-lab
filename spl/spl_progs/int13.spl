@@ -68,7 +68,7 @@ if (syscall == 18) then
 
 
     // if invalid arguments, return -1 to user program
-    if (SEMID > 7 || SEMID < 0 || [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 + 496 + SEMID*2 + 1] != SEMAPHORE) then
+    if (SEMID > 7 || SEMID < 0 || [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 + 496 + SEMID*2] != SEMAPHORE) then
         [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = -1;
         [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
         SP = userSP;
@@ -80,7 +80,7 @@ if (syscall == 18) then
     multipush(R4,R5,R7);
     R1 = 7;
     R2 = [SYSTEM_STATUS_TABLE+1];
-    R3 = SEMID;
+    R3 = [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 + 496 + SEMID*2 + 1]; //actual semId from index in per-process resource table
     call MOD_0;
     multipop(R4,R5,R7);
 
