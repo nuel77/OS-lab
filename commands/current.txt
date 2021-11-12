@@ -1,7 +1,8 @@
 load --init ../expl/expl_progs/init.xsm
 load --os ../spl/spl_progs/os_startup.xsm
 load --idle ../expl/samples/idle.xsm 
-load --exec ../expl/expl_progs/rdWrite.xsm
+load --exec ../expl/expl_progs/merge.xsm
+load --exec ../expl/expl_progs/merge2.xsm
 load --int=timer ../spl/spl_progs/timer_interrupt.xsm
 load --int=disk ../spl/spl_progs/diskInterruptHandler.xsm
 load --int=console ../spl/spl_progs/consoleInterruptHandler.xsm
