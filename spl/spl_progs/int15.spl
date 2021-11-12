@@ -5,7 +5,7 @@ print "Shutting Down";
 
 //for assingment 
 print "------";
-print "mem use"
+print "mem use";
 print [75*512 + 1];
 print "cntx switch";
 print [75*512 + 0];
