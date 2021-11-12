@@ -1,0 +1,103 @@
+///// SEMAPHORE SEMGET, SEMRELEASE INTERRUPT /////
+
+// switch to the kernel stack
+alias userSP R4;
+userSP = SP;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 - 1;
+
+// extract the system call number from the user stack
+alias syscall R5;
+syscall = [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-5)/512]*512 + (userSP-5)%512];
+
+/// Semget ///
+if (syscall == 17) then
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 17;
+
+    // check per-process resource table for free entries
+    alias i R6;
+    i = 0;
+    while (i<16) do
+        // if free entry is available 
+        if ([[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 + 496 + i] == -1) then
+            [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 + 496 + i + 1] = SEMAPHORE;
+            break; 
+        endif;
+        i = i + 2;
+    endwhile;
+    // if no free entries found, return -1 to user program
+    if (i == 16) then
+        [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = -1;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+        SP = userSP;
+        ireturn;
+    endif;
+
+    // call acquire semaphore in resource manager
+    multipush(R4,R5,R6);
+    R1 = 6;
+    R2 = [SYSTEM_STATUS_TABLE+1];
+    call MOD_0;
+    multipop(R4,R5,R6);
+
+
+    // if no free semaphores available, return -2 to user program
+    if (R0 == -1) then
+        [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = -2;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+        SP = userSP;
+        ireturn;
+    endif;
+    
+    // set index of semaphore table in per-process resource table
+    [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 + 496 + i] = R0;
+
+    // return per-process resource table entry index
+    [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = i/2;
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+    SP = userSP;
+    ireturn;
+
+endif;
+
+/// Semrelease ///
+if (syscall == 18) then
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 18;
+    alias SEMID R7;
+    SEMID = [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-4)/512]*512 + (userSP-4)%512];
+
+
+    // if invalid arguments, return -1 to user program
+    if (SEMID > 7 || SEMID < 0 || [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 + 496 + SEMID*2 + 1] != SEMAPHORE) then
+        [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = -1;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+        SP = userSP;
+        ireturn;
+    endif;
+    
+
+    // call release semaphore in resource manager
+    multipush(R4,R5,R7);
+    R1 = 7;
+    R2 = [SYSTEM_STATUS_TABLE+1];
+    R3 = SEMID;
+    call MOD_0;
+    multipop(R4,R5,R7);
+
+    // invalidate per-process resource table entry
+    [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 + 496 + SEMID*2] = -1;
+    // return 0 to user program, indicating success
+    [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = 0;
+    // MODE flag to USER
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+    // back to user stack
+    SP = userSP;
+    ireturn;
+
+endif;
+
+// MODE flag to USER
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
+// back to user stack
+SP = userSP;
+ireturn;
