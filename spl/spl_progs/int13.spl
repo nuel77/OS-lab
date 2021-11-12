@@ -1,4 +1,4 @@
-///// SEMAPHORE SEMGET, SEMRELEASE INTERRUPT /////
+///// INTERRUPT 13 /////
 
 // switch to the kernel stack
 alias userSP R4;

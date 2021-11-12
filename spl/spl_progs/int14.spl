@@ -1,4 +1,4 @@
-///// SEMAPHORE INTERRUPT /////
+///// INTERRUPT 14 /////
 
 // switch to the kernel stack
 alias userSP R4;
@@ -15,8 +15,10 @@ alias SEMID R6;
 SEMID = [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-4)/512]*512 + (userSP-4)%512];
 
 // calculate index in semaphore table (0-31)
-alias semaphoreTableIndex R7;
-semaphoreTableIndex = [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 + 496 + SEMID*2 + 1];
+alias semaphore_table_index R7;
+semaphore_table_index = [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 + 496 + SEMID*2 + 1];
+
+
 
 
 /// SemLock ///
@@ -32,11 +34,11 @@ if (syscall == 19) then
     endif;
     
     // wait loop (if semaphore not free, put current process in WAIT_SEMAPHORE and call scheduler)
-    while([SEMAPHORE_TABLE + 4*semaphoreTableIndex + 0] != -1 
-		&& [SEMAPHORE_TABLE + 4*semaphoreTableIndex + 0]!=[SYSTEM_STATUS_TABLE+1]) do
+    while([SEMAPHORE_TABLE + 4*semaphore_table_index + 0] != -1 
+		&& [SEMAPHORE_TABLE + 4*semaphore_table_index + 0]!=[SYSTEM_STATUS_TABLE+1]) do
 
 		[PROCESS_TABLE+16*[SYSTEM_STATUS_TABLE+1]+4]=WAIT_SEMAPHORE;
-		[PROCESS_TABLE+16*[SYSTEM_STATUS_TABLE+1]+5]=semaphoreTableIndex; 
+		[PROCESS_TABLE+16*[SYSTEM_STATUS_TABLE+1]+5]=semaphore_table_index; 
 
 		multipush(R4,R5,R6,R7);
 		call MOD_5;
@@ -46,7 +48,7 @@ if (syscall == 19) then
     
     // control reaches here, once the requested semaphore is free
     // now the current process can LOCK it
-    [SEMAPHORE_TABLE + 4*semaphoreTableIndex + 0] = [SYSTEM_STATUS_TABLE+1];
+    [SEMAPHORE_TABLE + 4*semaphore_table_index + 0] = [SYSTEM_STATUS_TABLE+1];
 
     // return 0, indicating success
     [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = 0;
@@ -70,8 +72,8 @@ if (syscall == 20) then
     endif;
 
     // if current process has not locked the semaphore, return -2 to user program
-    if([SEMAPHORE_TABLE + 4*semaphoreTableIndex + 0]!=-1 
-        &&  [SEMAPHORE_TABLE + 4*semaphoreTableIndex + 0]!=[SYSTEM_STATUS_TABLE+1]) then
+    if([SEMAPHORE_TABLE + 4*semaphore_table_index + 0]!=-1 
+        &&  [SEMAPHORE_TABLE + 4*semaphore_table_index + 0]!=[SYSTEM_STATUS_TABLE+1]) then
         [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE+1]*20 + 2*(userSP-1)/512]*512 + (userSP-1)%512] = -2;
         [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
         SP = userSP;
@@ -79,13 +81,13 @@ if (syscall == 20) then
     endif;
 
     // UNLOCK semaphore
-    [SEMAPHORE_TABLE + 4*semaphoreTableIndex + 0]=-1;
+    [SEMAPHORE_TABLE + 4*semaphore_table_index + 0]=-1;
 
     // wake up all process waiting for this semaphore
     alias i R8;
     i=0;
     while(i<16) do
-        if([PROCESS_TABLE+16*i+4]==WAIT_SEMAPHORE && [PROCESS_TABLE+16*i+5]==semaphoreTableIndex) then
+        if([PROCESS_TABLE+16*i+4]==WAIT_SEMAPHORE && [PROCESS_TABLE+16*i+5]==semaphore_table_index) then
             [PROCESS_TABLE+16*i+4]=READY;
         endif;
         i=i+1;
