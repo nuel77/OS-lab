@@ -45,6 +45,12 @@ endif;
 
 // ACQUIRE DISK
 if (functionNum == 3) then
+<<<<<<< Updated upstream
+=======
+
+    [75*512+2] = [75*512+2] + 1;
+
+>>>>>>> Stashed changes
     // If disk is not free, calling process is set to 'WAIT_DISK'
     // and the scheduleris invoked
     if ([DISK_STATUS_TABLE + 0] == 1) then
