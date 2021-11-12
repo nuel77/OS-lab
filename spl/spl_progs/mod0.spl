@@ -62,3 +62,47 @@ if (functionNum == 3) then
 endif;
 
 
+// ACQUIRE SEMAPHORE
+if (functionNum == 6) then
+    // find free entry in semaphore table 
+    alias i R3;
+    i = 0;
+    while (i < MAX_SEM_COUNT) do
+        if ([SEMAPHORE_TABLE + 4*i + 1] == 0) then
+            // set locking PID
+            [SEMAPHORE_TABLE + 4*i + 0] = -1;
+            // set no. of process using the semaphore to 1
+            [SEMAPHORE_TABLE + 4*i + 1] = 1;
+            R0 = i;
+            return;
+        endif;
+        i = i+1;
+    endwhile;
+    // if no free semaphores are available, return -1
+    if (i == MAX_SEM_COUNT) then
+        R0 = -1;
+        return;
+    endif;
+
+endif;
+
+
+// RELEASE SEMAPHORE
+if (functionNum == 7) then
+    alias SEMID R3;
+    if ([SEMAPHORE_TABLE + SEMID*4] == currentPID) then
+        // unlock semaphore
+        [SEMAPHORE_TABLE + SEMID*4] = -1;
+        // wake up all processes waiting for semaphore
+        alias i R4;
+        i = 0;
+        while (i<16) do
+            if ([PROCESS_TABLE + i*16 + 4] == WAIT_SEMAPHORE && [PROCESS_TABLE + i*16 + 5] == SEMID) then
+                [PROCESS_TABLE + i*16 + 4] = READY;
+            endif;
+            i = i+1;
+        endwhile;
+        // decrement process count of semaphore table
+        [SEMAPHORE_TABLE + SEMID*4 + 1] = [SEMAPHORE_TABLE + SEMID*4 + 1]-1;
+    endif;
+endif;

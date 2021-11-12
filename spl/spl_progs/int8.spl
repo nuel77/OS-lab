@@ -1,6 +1,6 @@
-/// FORK SYSTEM CALL
+/// FORK SYSTEM CALL///
 
-// set mode flag as system call
+// set mode flag
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 8;
 
 // switch to kernel stack
@@ -9,16 +9,17 @@ userSP = SP;
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 13] = SP;
 SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11]*512 - 1;
 
-alias parent_PID R4;
-parent_PID = [SYSTEM_STATUS_TABLE + 1];
+alias parentPID R4;
+parentPID = [SYSTEM_STATUS_TABLE + 1];
 
 // call "Get pcb entry" function from process manager
 multipush(R3,R4);
+
 R1 = 1;
 call MOD_1;
 // R0 will contain the PID of the child process
 if (R0 == -1) then
-    // store -1 in stack, no free entry available
+    // store -1 in stack, indicating no free entry available
     [[PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20 + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = -1;
     // switch to user stack
     SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 13];
@@ -26,8 +27,10 @@ if (R0 == -1) then
     [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 9] = 0;
     ireturn;
 endif;
-alias child_PID R5;
-child_PID = R0;
+
+alias childPID R5;
+childPID = R0;
+
 multipop(R3,R4);
 
 
@@ -35,24 +38,22 @@ multipop(R3,R4);
 // if heap pages are not allocated for parent process, then
 // call "get free page" from memory manager
 
-if ([PAGE_TABLE_BASE + 20*parent_PID + 5] == "0000") then
+if ([PAGE_TABLE_BASE + 20*parentPID + 5] == "0000") then
     multipush(R3,R4,R5);
     R1 = 1;
     call MOD_2;
     multipop(R3,R4,R5);
-    //free page returned in R0
-    [PAGE_TABLE_BASE + 20*parent_PID + 4] = R0;
-    [PAGE_TABLE_BASE + 20*parent_PID + 5] = "0110";
+    [PAGE_TABLE_BASE + 20*parentPID + 4] = R0;
+    [PAGE_TABLE_BASE + 20*parentPID + 5] = "0110";
 endif;
 
-if ([PAGE_TABLE_BASE + 20*parent_PID + 7] == "0000") then
+if ([PAGE_TABLE_BASE + 20*parentPID + 7] == "0000") then
     multipush(R3,R4,R5);
     R1 = 1;
     call MOD_2;
     multipop(R3,R4,R5);
-     //free page returned in R0
-    [PAGE_TABLE_BASE + 20*parent_PID + 6] = R0;
-    [PAGE_TABLE_BASE + 20*parent_PID + 7] = "0110";
+    [PAGE_TABLE_BASE + 20*parentPID + 6] = R0;
+    [PAGE_TABLE_BASE + 20*parentPID + 7] = "0110";
 endif;
 
 
@@ -61,86 +62,97 @@ multipush(R3,R4,R5);
 R1 = 1;
 call MOD_2;
 multipop(R3,R4,R5);
-[PAGE_TABLE_BASE + 20*child_PID + 16] = R0;
-[PAGE_TABLE_BASE + 20*child_PID + 17] = "0110";
+[PAGE_TABLE_BASE + 20*childPID + 16] = R0;
+[PAGE_TABLE_BASE + 20*childPID + 17] = "0110";
 
 multipush(R3,R4,R5);
 R1 = 1;
 call MOD_2;
 multipop(R3,R4,R5);
-[PAGE_TABLE_BASE + 20*child_PID + 18] = R0;
-[PAGE_TABLE_BASE + 20*child_PID + 19] = "0110";
+[PAGE_TABLE_BASE + 20*childPID + 18] = R0;
+[PAGE_TABLE_BASE + 20*childPID + 19] = "0110";
 
 // set up process table for child process
-[PROCESS_TABLE + child_PID*16 + 3] = [PROCESS_TABLE + parent_PID*16 + 3];
-[PROCESS_TABLE + child_PID*16 + 6] = [PROCESS_TABLE + parent_PID*16 + 6];
-[PROCESS_TABLE + child_PID*16 + 10] = [PROCESS_TABLE + parent_PID*16 + 10];
-[PROCESS_TABLE + child_PID*16 + 7] = [PROCESS_TABLE + parent_PID*16 + 7];
-[PROCESS_TABLE + child_PID*16 + 13] = [PROCESS_TABLE + parent_PID*16 + 13];
-[PROCESS_TABLE + child_PID*16 + 0] = 0;
-[PROCESS_TABLE + child_PID*16 + 9] = 0;
-[PROCESS_TABLE + child_PID*16 + 12] = 0;
-[PROCESS_TABLE + child_PID*16 + 4] = CREATED;
+alias childProcessTableEntry R6;
+childProcessTableEntry = PROCESS_TABLE + childPID*16;
+alias parentProcessTableEntry R7;
+parentProcessTableEntry = PROCESS_TABLE + parentPID*16;
+
+[childProcessTableEntry + 3]    =   [parentProcessTableEntry + 3];
+[childProcessTableEntry + 6]    =   [parentProcessTableEntry + 6];
+[childProcessTableEntry + 10]   =   [parentProcessTableEntry + 10];
+[childProcessTableEntry + 7]    =   [parentProcessTableEntry + 7];
+[childProcessTableEntry + 13]   =   [parentProcessTableEntry + 13];
+[childProcessTableEntry + 0]    =   0;
+[childProcessTableEntry + 9]    =   0;
+[childProcessTableEntry + 12]   =   0;
 
 
 // allocate new user area page for child process
-multipush(R3,R4,R5);
+multipush(R3,R4,R5,R6,R7);
 R1 = 1;
 call MOD_2;
-multipop(R3,R4,R5);
-[PROCESS_TABLE + child_PID*16 + 11] = R0;
+multipop(R3,R4,R5,R6,R7);
+[childProcessTableEntry + 11] = R0;
 
 // update PPID field of child process
-[PROCESS_TABLE + child_PID*16 + 2] = parent_PID;
+[childProcessTableEntry + 2] = parentPID;
 
+[childProcessTableEntry + 4]    =   CREATED;
 
-
-alias i R6;
+alias i R8;
+alias sem_table_index R9;
 
 // copy the per-process resource table of the parent to the child
 i = 0;
 while (i < 16) do
-    [[PROCESS_TABLE + child_PID*16 + 11]*512 + (512 - 1) - i] = [[PROCESS_TABLE + parent_PID*16 + 11]*512 + (512 - 1) - i];
+    [[childProcessTableEntry + 11]*512 + 496 + i] = [[parentProcessTableEntry + 11]*512 + 496 + i];
+    // semaphores get shared between parent and child
+    // process count gets incremented with each fork
+    if (i%2 == 0 && [[parentProcessTableEntry + 11]*512 + 496 + i] == SEMAPHORE) then
+        sem_table_index = [[parentProcessTableEntry + 11]*512 + 496 + i + 1];
+        [SEMAPHORE_TABLE + sem_table_index*4 + 1] = [SEMAPHORE_TABLE + sem_table_index*4 + 1] + 1;
+    endif;
     i = i + 1;
 endwhile;
 
 // copy the per-process disk map table of the parent to the child
 i = 0;
 while(i < 10) do
-	[DISK_MAP_TABLE + child_PID*10 + i] = [DISK_MAP_TABLE + parent_PID*10 + i];
+	[DISK_MAP_TABLE + childPID*10 + i] = [DISK_MAP_TABLE + parentPID*10 + i];
 	i = i + 1;
 endwhile;
 
 // initialize the page table of the child process
 i = 0;
 while(i < 16) do
-	[PAGE_TABLE_BASE + child_PID*20 + i] = [PAGE_TABLE_BASE + parent_PID*20 + i];
-	if(((i%2) == 0) && ([PAGE_TABLE_BASE + child_PID*20 + i] != -1)) then
-		[MEMORY_FREE_LIST + [PAGE_TABLE_BASE + child_PID*20 + i]] = [MEMORY_FREE_LIST + [PAGE_TABLE_BASE + child_PID*20 + i]] + 1;
+	[PAGE_TABLE_BASE + childPID*20 + i] = [PAGE_TABLE_BASE + parentPID*20 + i];
+	if(((i%2) == 0) && ([PAGE_TABLE_BASE + childPID*20 + i] != -1)) then
+		[MEMORY_FREE_LIST + [PAGE_TABLE_BASE + childPID*20 + i]] = [MEMORY_FREE_LIST + [PAGE_TABLE_BASE + childPID*20 + i]] + 1;
 	endif;
 	i = i + 1;
 endwhile;
 
 // parent and child user stack pages should have same AUXILIARY information ("0110")
-[PAGE_TABLE_BASE + child_PID*20 + 17] = [PAGE_TABLE_BASE + parent_PID*20 + 17];
-[PAGE_TABLE_BASE + child_PID*20 + 19] = [PAGE_TABLE_BASE + parent_PID*20 + 19];
+[PAGE_TABLE_BASE + childPID*20 + 17] = [PAGE_TABLE_BASE + parentPID*20 + 17];
+[PAGE_TABLE_BASE + childPID*20 + 19] = [PAGE_TABLE_BASE + parentPID*20 + 19];
 
 // copy content of the user stack pages of the parent to the child, word by word
 i = 0;
 while(i < 512) do
-	[[PAGE_TABLE_BASE + child_PID*20 + 16]*512 + i] = [[PAGE_TABLE_BASE + parent_PID*20 + 16]*512 + i];
-	[[PAGE_TABLE_BASE + child_PID*20 + 18]*512 + i] = [[PAGE_TABLE_BASE + parent_PID*20 + 18]*512 + i];
+	[[PAGE_TABLE_BASE + childPID*20 + 16]*512 + i] = [[PAGE_TABLE_BASE + parentPID*20 + 16]*512 + i];
+	[[PAGE_TABLE_BASE + childPID*20 + 18]*512 + i] = [[PAGE_TABLE_BASE + parentPID*20 + 18]*512 + i];
 	i = i + 1;
 endwhile;
 
 
 // store the value in the BP register on top of the kernel stack of child process
-[[PROCESS_TABLE + child_PID*16 + 11]*512] = BP;
+[[childProcessTableEntry+ 11]*512] = BP;
 
 // store the PID of the child process as return value to the parent
-[[PAGE_TABLE_BASE + parent_PID*20 + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = child_PID;
+[[PAGE_TABLE_BASE + parentPID*20 + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = childPID;
 // store 0 as the return value to the child
-[[PAGE_TABLE_BASE + child_PID*20 + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = 0;
+[[PAGE_TABLE_BASE + childPID*20 + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = 0;
 
 
 // switch to user stack (of parent process)
