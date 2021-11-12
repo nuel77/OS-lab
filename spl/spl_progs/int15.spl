@@ -3,17 +3,6 @@
 // SHUTDOWN system call
 print "Shutting Down";
 
-//for assingment 
-print "------";
-print "mem use";
-print [75*512 + 1];
-print "cntx switch";
-print [75*512 + 0];
-print "disk accss";
-print [75*512 + 2];
-print "------";
-
-
 alias userSP R0;
 alias physicalAddrRetVal R1;
 userSP = SP;

@@ -1,14 +1,5 @@
 ///// BOOT MODULE /////
 
-// Using page 75 for assgn stage 22
-
-// context switch
-[75*512 + 0] = 0;
-// max memory usage
-[75*512 + 1] = 0;
-// disk access
-[75*512 + 2] = 0;
-
 // Load the INIT program from the disk to the memory.
 loadi(65,7);
 loadi(66,8);
