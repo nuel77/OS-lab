@@ -3,6 +3,7 @@ load --os ../spl/spl_progs/os_startup.xsm
 load --idle ../expl/samples/idle.xsm 
 load --exec ../expl/expl_progs/create.xsm
 load --exec ../expl/expl_progs/delete.xsm
+load --exec ../expl/expl_progs/read.xsm
 load --int=timer ../spl/spl_progs/timer_interrupt.xsm
 load --int=disk ../spl/spl_progs/diskInterruptHandler.xsm
 load --int=console ../spl/spl_progs/consoleInterruptHandler.xsm
@@ -11,6 +12,7 @@ load --int=9 ../spl/spl_progs/int9.xsm
 load --int=8 ../spl/spl_progs/int8.xsm
 load --int=7 ../spl/spl_progs/int7.xsm
 load --int=6 ../spl/spl_progs/int6.xsm
+load --int=5 ../spl/spl_progs/int5.xsm
 load --int=4 ../spl/spl_progs/int4.xsm
 load --int=11 ../spl/spl_progs/int11.xsm
 load --int=13 ../spl/spl_progs/int13.xsm
@@ -19,8 +21,10 @@ load --int=15 ../spl/spl_progs/int15.xsm
 load --module 0 ../spl/spl_progs/mod0.xsm
 load --module 1 ../spl/spl_progs/mod1.xsm
 load --module 2 ../spl/spl_progs/mod2.xsm
+load --module 3 ../spl/spl_progs/mod3.xsm
 load --module 4 ../spl/spl_progs/mod4.xsm
 load --module 5 ../spl/spl_progs/mod5.xsm
 load --module 7 ../spl/spl_progs/bootmodule.xsm
 load --exhandler ../spl/spl_progs/exception.xsm
 load --library ../expl/library.lib
+load --data ../expl/numbers.dat

@@ -1,4 +1,4 @@
-// PROCESS MANAGER MODULE //
+///// PROCESS MANAGER MODULE /////
 alias functionNum R1;
 alias PID R2;
 
@@ -34,13 +34,25 @@ if (functionNum == 2) then
     alias i R3;
     i = 0;
     while (i < 16) do
+        
+        // releasing all unreleased semaphores
         if (i%2 == 0 && [[PROCESS_TABLE + PID*16 + 11]*512 + 496 + i] == SEMAPHORE) then
             // call release semaphore in resource manager module
             multipush(R1,R2,R3);
             R1 = 7;
-            R2 = PID;
+            R2 = [[PROCESS_TABLE + PID*16 + 11]*512 + 496 + i + 1];
             R3 = i/2;
             call MOD_0;
+            multipop(R1,R2,R3);
+        endif;
+
+        // closing all open files (opened by this process)
+        if (i%2 == 0 && [[PROCESS_TABLE + PID*16 + 11]*512 + 496 + i] == FILE) then
+            // call "close" in file manager module
+            multipush(R1,R2,R3);
+            R1 = 4;
+            R2 = [[PROCESS_TABLE + PID*16 + 11]*512 + 496 + i + 1];
+            call MOD_3;
             multipop(R1,R2,R3);
         endif;
         i = i + 1;

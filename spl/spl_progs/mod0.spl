@@ -3,6 +3,55 @@
 alias functionNum R1;
 alias currentPID R2;
 
+
+// ACQUIRE BUFFER
+if (functionNum == 1) then
+    alias bufferNum R3;
+
+    breakpoint;
+    
+    // check if buffer is already acquired
+    while ([BUFFER_TABLE + 4*bufferNum + 2] != -1) do
+        [PROCESS_TABLE + 16*currentPID + 4] = WAIT_BUFFER;
+        [PROCESS_TABLE + 16*currentPID + 5] = bufferNum;
+        backup;
+        call MOD_5;
+        restore;
+    endwhile;
+
+    // set LOCKING PID to the current PID
+    [BUFFER_TABLE + bufferNum*4 + 2] = currentPID;
+    return;
+endif;
+
+
+
+// RELEASE BUFFER
+if (functionNum == 2) then
+
+	alias bufferNum R3;
+	if(currentPID != [BUFFER_TABLE+4*bufferNum+2]) then
+		R0=-1;
+		return;
+	endif;
+
+	//Setting LOCKING PID field to -1
+	[BUFFER_TABLE+4*bufferNum+2]=-1;
+
+	alias i R4;
+	i=0;
+	while(i<=15) do
+		if([PROCESS_TABLE+16*i+4]==WAIT_BUFFER && [PROCESS_TABLE+16*i+5]==bufferNum) then
+			[PROCESS_TABLE+16*i+4]=READY;
+		endif;
+		i=i+1;
+	endwhile;
+
+	R0=0;
+	return;
+
+endif;
+
 // ACQUIRE INODE
 if (functionNum == 4) then
 
@@ -60,12 +109,6 @@ if (functionNum == 5) then
 
 
 endif;
-
-
-
-
-
-
 
 
 // ACQUIRE TERMINAL
@@ -152,10 +195,7 @@ if (functionNum == 6) then
         R0 = -1;
         return;
     endif;
-
 endif;
-
-
 
 
 // RELEASE SEMAPHORE
@@ -176,4 +216,5 @@ if (functionNum == 7) then
         // decrement process count of semaphore table
         [SEMAPHORE_TABLE + SEMID*4 + 1] = [SEMAPHORE_TABLE + SEMID*4 + 1]-1;
     endif;
+    return;
 endif;

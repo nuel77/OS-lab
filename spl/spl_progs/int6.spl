@@ -1,35 +1,163 @@
-///Read Interrupt///
+///// INTERRUPT 6 /////
+// READ syscall no. = 7
 
-// MODE FLAG of current proccess table = 7 for read
+// set MODE flag to system call number (7 for Read)
 [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 9] = 7;
 
-//save the user stack address
+// save value of SP
 alias userSP R0;
 userSP = SP;
 
-//user stack address saved to UPTR
+// save to UPTR
 [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 13] = SP;
 
-// kernel stack = (userPageNumber)*512-1
+// kernel stack
 SP = [PROCESS_TABLE + 16*[SYSTEM_STATUS_TABLE + 1] + 11]*512 - 1;
 
-//Get file descriptor argument (from userSP-4) (manual address translation)
+// Get file descriptor argument (from userSP-4)
 alias fileDescriptor R1;
 fileDescriptor = [[PTBR + 2*((userSP-4)/512)]*512 + (userSP-4)%512];
 
-//address to store return value
+// Return Value
 alias retValAddr R2;
-//get the address to store return value (userSP-1) (manual address translation)
 retValAddr = [PTBR + 2*((userSP-1)/512)]*512 + (userSP-1)%512;
 
-//If the file descriptor is not -1
-//Store -1 as the return value in the user stack (at position userSP-1).
+
 if (fileDescriptor != -1) then
-    [retValAddr] = -1;
+    // reading from file
+
+    // check validity of file descriptor
+    if (fileDescriptor < 0 || fileDescriptor > 7) then
+        // return invalid error code
+        [retValAddr] = -1;
+        SP = userSP;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+        ireturn;
+    endif;
+
+    // check for file in per-process resource table
+    alias userAreaPageNum R3;
+    userAreaPageNum = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11];
+	if([userAreaPageNum*512 + 496 + fileDescriptor*2]==-1 ||
+	   [userAreaPageNum*512 + 496 + fileDescriptor*2]!=FILE) then
+        // return invalid error code
+        [retValAddr] = -1;
+        SP = userSP;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+        ireturn;
+    endif;
+
+    alias open_file_table_index R4;
+    open_file_table_index = [userAreaPageNum*512 + 496 + fileDescriptor*2 + 1];
+
+    alias inode_index R5;
+    inode_index = [OPEN_FILE_TABLE + open_file_table_index*4 + 0];
+    
+    backup;
+        // Acquire Inode
+        R1=4;
+		R2=[SYSTEM_STATUS_TABLE+1];
+		R3=inode_index;
+		call MOD_0;
+
+		if(R0==-1) then
+			restore;
+            [retValAddr] = -1;
+            SP = userSP;
+            [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+            ireturn;
+		endif;
+
+
+    restore;
+    
+    alias lseek R7;
+    lseek = [OPEN_FILE_TABLE + open_file_table_index*4 + 2];
+
+    alias word R8;
+    word = [[PTBR + 2*((userSP-3)/512)]*512 + ((userSP-3)%512)];
+
+    alias addr R9;
+    addr = (([PTBR + 2 * ((word)/ 512)]) * 512) + ((word) % 512);
+
+    
+    // if file to be read is the ROOT file
+	if(inode_index==INODE_ROOT) then
+        // if lseek is equal to root file size
+		if(lseek==480) then
+			//Releasing Inode
+			backup;
+				R1=5;
+				R2=[SYSTEM_STATUS_TABLE + 1];
+				R3=inode_index;
+				call MOD_0;
+			restore;
+
+            [retValAddr] = -2;
+            SP = userSP;
+            [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+            ireturn;
+		endif;
+
+        // READ from lseek position to translated memory address
+		[addr] = [ROOT_FILE + lseek];
+        // increment lseek
+		[OPEN_FILE_TABLE + 4*open_file_table_index + 2] = [OPEN_FILE_TABLE + 4*open_file_table_index + 2]+1;
+
+	else
+		alias file_size R10;
+		file_size = [INODE_TABLE + 16*inode_index + 2];
+		if(lseek==file_size) then
+			//Releasing Inode
+			backup;
+				R1=5;
+				R2=[SYSTEM_STATUS_TABLE + 1];
+				R3=inode_index;
+				call MOD_0;
+			restore;
+            [retValAddr] = -2;
+            SP = userSP;
+            [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+            ireturn;
+		endif;
+
+		alias block_no R11;
+		block_no = [INODE_TABLE+16*inode_index+8+(lseek/512)];
+
+		alias new_offset R12;
+		new_offset = lseek%512;
+
+		//Calling buffered read function
+		backup;
+			R1=2;
+			R2=block_no;
+			R3=new_offset;
+			R4=addr;
+			call MOD_3;
+		restore;
+
+		//Incrementing lseek value
+		[OPEN_FILE_TABLE + 4*open_file_table_index + 2] = [OPEN_FILE_TABLE + 4*open_file_table_index + 2]+1;		
+
+		//Releasing Inode
+		backup;
+			R1=5;
+			R2=[SYSTEM_STATUS_TABLE + 1];
+			R3=inode_index;
+			call MOD_0;
+		restore;
+
+        [retValAddr] = 0;
+        SP = userSP;
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+        ireturn;
+
+	endif;
+
 else
+    // reading from terminal
     // Word Address
     alias wordAddress R3;
-    //get the address to store the console input (userSP-3) (manual address translation)
     wordAddress = [[PTBR + 2 * ((userSP - 3) / 512)] * 512 + ((userSP - 3) % 512)];
     multipush(R0,R1,R2,R3);
 
@@ -42,10 +170,9 @@ else
     [retValAddr] = 0;
 endif;
 
-//change SP from kernel to user
+// switch back to user stack
 SP = userSP;
-
-//reset MODE flag to 0 userMode
+// Reset MODE flag
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
 
 ireturn;

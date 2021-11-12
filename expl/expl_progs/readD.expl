@@ -1,0 +1,26 @@
+int main(){
+decl
+    int data,temp,fd,a;
+    string fname;
+enddecl
+begin
+    temp = exposcall("Write",-2,"EnterFileName:");
+    temp = exposcall("Read",-1,fname);
+    fd = exposcall("Open",fname);
+    temp = exposcall("Write",-2,"FileDesc");
+    temp = exposcall("Write",-2,fd);
+    if (fd == -1) then
+        temp = exposcall("Write",-2,"Invalid");
+    else
+        a = 0;
+        while (1==1) do
+            a = exposcall("Read",fd,data);
+            if (a==-2) then
+                break;
+            endif;
+            temp = exposcall("Write",-2,data);
+        endwhile;
+    endif;
+    return 0;
+end
+}

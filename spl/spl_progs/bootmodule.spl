@@ -1,14 +1,5 @@
 ///// BOOT MODULE /////
 
-// Using page 75 for assgn stage 22
-
-// context switch
-[75*512 + 0] = 0;
-// max memory usage
-[75*512 + 1] = 0;
-// disk access
-[75*512 + 2] = 0;
-
 // Load the INIT program from the disk to the memory.
 loadi(65,7);
 loadi(66,8);
@@ -25,6 +16,10 @@ loadi(61,2);
 // INT 4
 loadi(10,23);
 loadi(11,24);
+
+// INT 5
+loadi(12,25);
+loadi(13,26);
 
 // INT 6
 loadi(14,27);
@@ -94,6 +89,10 @@ loadi(43,56);
 // Module 2 - Memory manager
 loadi(44,57);
 loadi(45,58);
+
+// Module 3 - File manager
+loadi(46,59);
+loadi(47,60);
 
 // Module 4 - Device Manager
 loadi(48,61);
@@ -237,6 +236,17 @@ while (i<32) do
     [SEMAPHORE_TABLE + i*4 + 1] = 0;
     i = i+1;
 endwhile;
+
+// Initialize open file table
+i = 0;
+while (i<32) do
+    // Inode index
+    [OPEN_FILE_TABLE + i*4 + 0] = -1;
+    // open instance count
+    [OPEN_FILE_TABLE + i*4 + 1] = 0;
+    i = i+1;
+endwhile;
+
 
 // pages 0-82 are in use
 // pages 83-127 are free

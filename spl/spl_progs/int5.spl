@@ -1,0 +1,128 @@
+///// INTERRUPT 5 /////
+
+alias pcb_entry R0;
+alias ret_val_add R1;
+pcb_entry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16;
+
+// switch to the kernel stack
+alias userSP R4;
+userSP = SP;
+[pcb_entry + 13] = SP;
+SP = [pcb_entry + 11]*512 - 1;
+
+// extract the system call number from the user stack
+alias syscall R5;
+syscall = [[PTBR + 2*(userSP-5)/512]*512 + (userSP-5)%512];
+
+// physical address of return value
+ret_val_add = [PTBR + 2*(userSP-1)/512]*512 + (userSP-1)%512;
+
+// OPEN system call
+if (syscall == 2) then
+    [pcb_entry + 9] = 2;
+
+    // extract file name from stack
+    alias filename R6;
+    filename = [([PTBR + 2 * ((userSP - 4)/ 512)] * 512) + (userSP - 4) % 512];
+
+    alias filedesc R7;
+    filedesc = -1;
+
+    alias i R8;
+    i = RESOURCE_TABLE_OFFSET; // 496
+
+    // search for free entry in per-process resource table
+    while (i < 512) do
+        if ([[pcb_entry + 11]*512 + i] == -1) then
+            filedesc = (i-RESOURCE_TABLE_OFFSET)/2;
+            break;
+        endif;
+        i = i + 2;
+    endwhile;
+
+    // if no free entry found in per-process resource table, return -3
+    if (filedesc == -1) then
+        [ret_val_add] = -3;
+        [pcb_entry + 9] = 0;
+        SP = userSP;
+        ireturn;
+    endif;
+
+    alias open_file_table_entry R9;
+
+    // call "Open" function (no. 3) in the file manager module (MOD_3)
+    multipush(R0,R1,R2,R3,R4,R5,R6,R7,R8);
+        R1 = 3;
+        R2 = filename;
+        call MOD_3;
+        open_file_table_entry = R0;
+    multipop(R0,R1,R2,R3,R4,R5,R6,R7,R8);
+
+    // if file open failed, return corresponding error code
+    if (open_file_table_entry == -1 || open_file_table_entry == -2) then
+        [ret_val_add] = open_file_table_entry;
+        [pcb_entry + 9] = 0;
+        SP = userSP;
+        ireturn;
+    endif;
+
+    // set per-process resource table entry
+    [[pcb_entry + 11]*512 + RESOURCE_TABLE_OFFSET + 2*filedesc] = FILE;
+    [[pcb_entry + 11]*512 + RESOURCE_TABLE_OFFSET + 2*filedesc + 1] = open_file_table_entry;
+    
+    // store the file descriptor in stack and return to user
+    [ret_val_add] = filedesc;
+    [pcb_entry + 9] = 0;
+    SP = userSP;
+    ireturn;
+
+endif;
+
+
+// CLOSE system call
+if (syscall == 3) then
+    [pcb_entry + 9] = 3;
+
+    // extract file descriptor from stack (index of file in per-process resource table)
+    alias filedesc R6;
+    filedesc = [([PTBR + 2 * ((userSP - 4)/ 512)] * 512) + (userSP - 4) % 512];
+
+    // check validity of file descriptor argument
+    // return -1 if invalid
+    if (filedesc < 0 || filedesc > 7) then
+        [ret_val_add] = -1;
+        [pcb_entry + 9] = 0;
+        SP = userSP;
+        ireturn;
+    endif;
+
+    // if the Resource identifier field of the Per Process Resource Table entry is invalid or does not indicate a FILE, return -1
+    if ([[pcb_entry + 11]*512 + RESOURCE_TABLE_OFFSET + 2*filedesc] != FILE ||
+        [[pcb_entry + 11]*512 + RESOURCE_TABLE_OFFSET + 2*filedesc] == -1) then
+        [ret_val_add] = -1;
+        [pcb_entry + 9] = 0;
+        SP = userSP;
+        ireturn;
+    endif;
+
+    alias open_file_table_entry R7;
+    open_file_table_entry = [[pcb_entry + 11]*512 + RESOURCE_TABLE_OFFSET + 2*filedesc + 1];
+
+    // call "Close" function (no. 4) in the file manager module (MOD_3)
+	backup;
+		R1=4;
+		R2=open_file_table_entry;
+		call MOD_3;
+	restore;
+    
+    // invalidate per-process resource table entry
+    [[pcb_entry + 11]*512 + RESOURCE_TABLE_OFFSET + 2*filedesc] = -1;
+
+    // store 0 (success) in stack and return to user
+    [ret_val_add] = 0;
+    [pcb_entry + 9] = 0;
+    SP = userSP;
+    ireturn;
+
+endif;
+
