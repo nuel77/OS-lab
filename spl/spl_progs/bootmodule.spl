@@ -1,19 +1,29 @@
-//INIT Program
+///// BOOT MODULE /////
+
+// Using page 75 for assgn stage 22
+
+// Load the INIT program from the disk to the memory.
 loadi(65,7);
 loadi(66,8);
 
-//INODE + USER TABLE
+// Load inode+user table
 loadi(59,3);
 loadi(60,4);
 
-//DISK FREE LIST
+// Load Disk Free List
 loadi(61,2);
 
-//INT6
+// Load interrupt handlers
+
+// INT 4
+loadi(10,23);
+loadi(11,24);
+
+// INT 6
 loadi(14,27);
 loadi(15,28);
 
-//INT7
+// INT 7
 loadi(16,29);
 loadi(17,30);
 
@@ -21,11 +31,11 @@ loadi(17,30);
 loadi(18,31);
 loadi(19,32);
 
-//INT 9
+// INT 9
 loadi(20,33);
 loadi(21,34);
 
-// INT10
+// INT 10
 loadi(22,35);
 loadi(23,36);
 
@@ -45,7 +55,7 @@ loadi(31,44);
 loadi(32,45);
 loadi(33,46);
 
-//INT Timer
+// INT Timer
 loadi(4, 17);
 loadi(5, 18);
 
@@ -53,15 +63,20 @@ loadi(5, 18);
 loadi(6, 19);
 loadi(7, 20);
 
-//Console interrupt Handler
+// INT Console
 loadi(8,21);
 loadi(9,22);
 
-//Exception Handler
+// Load the exception handler routine from the disk to the memory.
 loadi(2, 15);
 loadi(3, 16);
 
-//MODULE 0 - Resouce Manager
+// Load libraries from the disk to the memory.
+loadi(63,13);
+loadi(64,14);
+
+// Load Modules
+// Module 0 - Resource manager
 loadi(40,53);
 loadi(41,54);
 
@@ -73,39 +88,42 @@ loadi(43,56);
 loadi(44,57);
 loadi(45,58);
 
-// MODULE 4 - Device Manager
+// Module 4 - Device Manager
 loadi(48,61);
 loadi(49,62);
 
-// MODULE 5 - Scheduler
+// Module 5 - Scheduler
 loadi(50,63);
 loadi(51,64);
 
-//Library Code
-loadi(63,13);
-loadi(64,14);
+
+// context switch
+[75*512 + 0] = 0;
+// max memory usage
+[75*512 + 1] = 0;
+// disk access
+[75*512 + 2] = 0;
+
+/////////////// INIT PROCESS SETUP ///////////////
 
 
-/// INIT PROCESS ///
-
-
-// PAGE TABLE FOR INIT
-PTBR = PAGE_TABLE_BASE+20;  // 0-19 reserved by idle process
+// Page table setup 
+PTBR = PAGE_TABLE_BASE + 20;
 PTLR = 10;
 
-//Library
+//LIBRARY
 [PTBR+0] = 63;
 [PTBR+1] = "0100";
 [PTBR+2] = 64;
 [PTBR+3] = "0100";
 
-//Heap
+//HEAP
 [PTBR+4] = 78;
 [PTBR+5] = "0110";
 [PTBR+6] = 79;
 [PTBR+7] = "0110";
 
-//Code
+//CODE
 [PTBR+8] = 65;
 [PTBR+9] = "0100";
 [PTBR+10] = 66;
@@ -115,28 +133,30 @@ PTLR = 10;
 [PTBR+14] = -1;
 [PTBR+15] = "0000";
 
-//Stack
+//STACK
 [PTBR+16] = 76;
 [PTBR+17] = "0110";
 [PTBR+18] = 77;
 [PTBR+19] = "0110";
 
-//Process Table for Init process
+// Process table setup
+// User Area page 
+[PROCESS_TABLE + 16 + 11] = 80;
 
-//User Area page 
-[PROCESS_TABLE + 16 + 11] = 80; //free random page
-
-// PID of init is 1
+// PID 
 [PROCESS_TABLE + 16 + 1] = 1;
+
+// USERID
+[PROCESS_TABLE + 16 + 3] = 1;
 
 // STATE 
 [PROCESS_TABLE + 16 + 4] = CREATED;
 
 // PTBR 
-[PROCESS_TABLE + 16 + 14] = PAGE_TABLE_BASE + 1*20 ; //index of 1st process
+[PROCESS_TABLE + 16 + 14] = PAGE_TABLE_BASE + 20 ;
 
 // PTLR 
-[PROCESS_TABLE + 16 + 15] = 10; //constant
+[PROCESS_TABLE + 16 + 15] = 10;
 
 // KPTR
 [PROCESS_TABLE + 16 + 12] = 0;
@@ -145,9 +165,10 @@ PTLR = 10;
 [PROCESS_TABLE + 16 + 13] = 8*512;
 
 // Storing entry point of program to stack top
-[76*512] = [65*512 + 1]; //stack top address of init process= 2nd line of code file (entry point)
+[76*512] = [65*512 + 1];
 
-//resource table setup for INIT process in the last 16 words of user area page
+// Per-process resource table setup for INIT process
+// in the last 16 words of user area page
 alias i R1;
 i = 1;
 while (i < 16) do
@@ -168,14 +189,17 @@ endwhile;
 [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 8] = -1;
 [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + 9] = -1;
 
+
+///// INITIALIZATION /////
+
+
 // Setting STATE field of all other processes as TERMINATED
-alias stateField R0;
-stateField = PROCESS_TABLE + 4 ;
-i = 0;
-//max 16 processes
-while(i<16) do
-    if (([stateField+i*16]!=CREATED) && ([stateField+i*16]!=RUNNING) && ([stateField+i*16]!=READY)) then
-        [stateField+i*16]=TERMINATED;
+alias state_field R0;
+state_field = PROCESS_TABLE + 4 ;
+i = 2;
+while((state_field+i*16) < (PROCESS_TABLE + 16*16)) do
+    if (([state_field+i*16]!=CREATED) && ([state_field+i*16]!=RUNNING) && ([state_field+i*16]!=READY)) then
+        [state_field+i*16]=TERMINATED;
     endif;
     i=i+1;
 endwhile;
@@ -185,6 +209,25 @@ endwhile;
 
 // Setting STATUS field in disk status table to 0 (indicating disk free for first process)
 [DISK_STATUS_TABLE] = 0;
+
+//Initializing file status table
+i=0;
+while(i<60) do
+	[FILE_STATUS_TABLE+i*4+0]=-1;
+	[FILE_STATUS_TABLE+i*4+1]=-1;
+	i=i+1;
+endwhile;
+
+//Initializing buffer table
+i=0;
+while(i<4) do
+	[BUFFER_TABLE+i*4+0]=-1;
+	[BUFFER_TABLE+i*4+1]=0;
+	[BUFFER_TABLE+i*4+2]=-1;
+	i=i+1;
+endwhile;
+
+
 
 // Initialize semaphore table
 i = 0;
@@ -199,20 +242,24 @@ endwhile;
 // pages 0-82 are in use
 // pages 83-127 are free
 i = 0;
-//pages reservered by OS total 128 pages, 512 words per page
-while(i <= 82) do
+while(i < 83) do
 	[MEMORY_FREE_LIST + i] = 1;
 	i = i + 1;
 endwhile;
-
-//83-126 should be set free
-while(i <= 127) do
+while(i < 128) do
 	[MEMORY_FREE_LIST + i] = 0;
 	i = i + 1;
 endwhile;
 
-[SYSTEM_STATUS_TABLE + 2] = 45; //memory free count
+// memory free count
+[SYSTEM_STATUS_TABLE + 2] = 45;
+
+// WAIT_MEM count
 [SYSTEM_STATUS_TABLE + 3] = 0;
+
+
+
+
 
 // Return to OS startup code
 return;
