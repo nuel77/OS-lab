@@ -1,2 +1,12 @@
 print "Shutting Down";
+
+print "------";
+print "mem use";
+print [75*512 + 1];
+print "cntx switch";
+print [75*512 + 0];
+print "disk accss";
+print [75*512 + 2];
+print "------";
+
 halt;
