@@ -110,7 +110,7 @@ endif;
 
 // ACQUIRE DISK
 if (functionNum == 3) then
-
+    //increment disk acess count
     [75*512+2] = [75*512+2] + 1;
 
     // If disk is not free, calling process is set to 'WAIT_DISK'

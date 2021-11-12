@@ -27,6 +27,10 @@ if (functionNum == 1) then
     while (freePageNum <= 127) do
         if ([MEMORY_FREE_LIST + freePageNum] == 0) then
             [MEMORY_FREE_LIST + freePageNum] = 1;
+             //increment free memory for assisgnment
+             if ((128-[SYSTEM_STATUS_TABLE+2])>[75*512+1]) then
+                [75*512+1] = 128-[SYSTEM_STATUS_TABLE+2];    
+            endif;
             return;
         endif;
         freePageNum = freePageNum+1;

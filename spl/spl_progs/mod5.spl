@@ -1,5 +1,8 @@
 ///Scheduler///
 
+//contex switch increment
+[75*512 + 0]=[75*512 + 0]+1;
+
 //SP currenly points to kernel stack//
 
 //obtain pid of current processs from system Status Table .
