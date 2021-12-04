@@ -2,6 +2,9 @@ load --init ../expl/expl_progs/init.xsm
 load --os ../spl/spl_progs/os_startup.xsm
 load --idle ../expl/samples/idle.xsm 
 load --exec ../expl/expl_progs/ls.xsm
+load --exec ../expl/expl_progs/create.xsm
+load --exec ../expl/expl_progs/delete.xsm
+load --exec ../expl/expl_progs/s25a1.xsm
 load --exec ../expl/expl_progs/read.xsm
 load --int=timer ../spl/spl_progs/timer_interrupt.xsm
 load --int=disk ../spl/spl_progs/diskInterruptHandler.xsm
