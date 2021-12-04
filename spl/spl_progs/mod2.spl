@@ -58,6 +58,22 @@ if (functionNum == 2) then
 endif;
 
 
+// Get free block
+if (functionNum == 3) then
+	alias i R15;
+	i=DISK_FREE_AREA;
+	while(i <= DISK_SWAP_AREA - 1) do
+		if([DISK_FREE_LIST+i]==0) then
+			[DISK_FREE_LIST+i]=1;
+			R0=i;
+			return;
+		endif;
+		i=i+1;
+	endwhile;
+	R0=-1;
+	return;
+endif;
+
 // Release Block, R2 is page num
 if (functionNum == 4) then
     [DISK_FREE_LIST + R2] = [DISK_FREE_LIST + R2] - 1;

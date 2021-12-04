@@ -174,3 +174,52 @@ if (functionNum == 4) then
 
     return;
 endif;
+
+// Kill all
+if (functionNum == 5 ) then
+
+	alias i R5;
+	i=0;
+
+    // Acquire inode for all files
+	while(i<60) do
+		if([INODE_TABLE+16*i+1]!=-1) then
+			multipush(R0,R1,R2,R3,R4,R5);
+				R1=4;
+				R2=[SYSTEM_STATUS_TABLE+1];
+				R3=i;
+				call MOD_0;
+			multipop(R0,R1,R2,R3,R4,R5);
+		endif;
+		i=i+1;
+	endwhile;
+
+    //  If pid != pid of the current process AND state of the process in the process table entry is not TERMINATED
+	i=2;
+	while(i<=MAX_PROC_NUM - 1) do
+		if(i!=[SYSTEM_STATUS_TABLE+1] && [PROCESS_TABLE+16*i+4]!=TERMINATED) then
+			backup;
+				R1=3;
+				R2=i;
+				call MOD_1;
+			restore;
+		endif;
+		i=i+1;
+	endwhile;
+    
+    // Release inodes
+	i=0;
+	while(i<MAX_FILE_NUM) do
+		if([INODE_TABLE+16*i+1]!=-1) then
+			backup;
+				R1=5;
+				R2=[SYSTEM_STATUS_TABLE+1];
+				R3=i;
+				call MOD_0;
+			restore;
+		endif;
+		i=i+1;
+	endwhile;
+    return;
+
+endif;

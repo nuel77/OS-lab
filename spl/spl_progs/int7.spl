@@ -1,5 +1,12 @@
-/// WRITE Interrupt ///
-[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 5;
+//WRITE
+
+alias pcb_entry R15;
+pcb_entry = PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16;
+
+// Set the MODE FLAG field in the process table to the system call number which is 5.
+[pcb_entry + 9] = 5;
+
+//Store the value of user SP in a register as we need it for further computations.
 alias userSP R0;
 userSP = SP;
 
@@ -7,41 +14,195 @@ userSP = SP;
 // Save the value of SP in the user SP field of Process Table entry of the process.
 // Set the value of SP to beginning of the kernel stack
 
-[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
+[pcb_entry + 13] = SP;
 // Setting SP to UArea Page number * 512 - 1
-SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
+SP = [pcb_entry+ 11] * 512 - 1;
 
-alias physicalPageNum R1;
-alias offset R2;
-alias fileDescPhysicalAddr R3;
-physicalPageNum = [PTBR + 2 * ((userSP - 4)/ 512)];
-offset = (userSP - 4) % 512;
-fileDescPhysicalAddr = (physicalPageNum * 512) + offset;
-alias fileDescriptor R4;
-fileDescriptor=[fileDescPhysicalAddr];
-if (fileDescriptor != -2)
-then
-	 alias physicalAddrRetVal R5;
-	 physicalAddrRetVal = ([PTBR + 2 * ((userSP - 1) / 512)] * 512) + ((userSP - 1) % 512);
-	 [physicalAddrRetVal] = -1;
+// Get file descriptor argument (from userSP-4)
+alias fileDescriptor R1;
+fileDescriptor = [[PTBR + 2*((userSP-4)/512)]*512 + (userSP-4)%512];
+
+// Return Value
+alias retValAddr R2;
+retValAddr = [PTBR + 2*((userSP-1)/512)]*512 + (userSP-1)%512;
+
+
+if (fileDescriptor != -2) then
+
+    // writing to file
+    // check validity of file descriptor
+    if (fileDescriptor < 0 || fileDescriptor > 7) then
+        // return invalid error code
+        [retValAddr] = -1;
+        SP = userSP;
+        [pcb_entry + 9] = 0;
+        ireturn;
+    endif;
+
+    // check for file in per-process resource table
+    alias userAreaPageNum R3;
+    userAreaPageNum = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE+1]*16 + 11];
+	if([userAreaPageNum*512 + 496 + fileDescriptor*2]==-1 ||
+	   [userAreaPageNum*512 + 496 + fileDescriptor*2]!=FILE) then
+        // return invalid error code
+        [retValAddr] = -1;
+        SP = userSP;
+        [pcb_entry + 9] = 0;
+        ireturn;
+    endif;
+
+    alias open_file_table_index R4;
+    open_file_table_index = [userAreaPageNum*512 + 496 + fileDescriptor*2 + 1];
+
+    alias inode_index R5;
+    inode_index = [OPEN_FILE_TABLE + open_file_table_index*4 + 0];
+    
+    // If the current user is not root and the current user does not own the file and the exclusive permission is set, return -3. 
+	if([INODE_TABLE+16*inode_index+3]!=[SYSTEM_STATUS_TABLE+0] && 
+		[INODE_TABLE+16*inode_index+4]==EXCLUSIVE) then
+        // return -3
+        [retValAddr] = -3;
+        SP = userSP;
+        [pcb_entry + 9] = 0;
+        ireturn;
+    endif;
+
+
+
+    backup;
+        // Acquire Inode
+        R1=4;
+		R2=[SYSTEM_STATUS_TABLE+1];
+		R3=inode_index;
+		call MOD_0;
+
+		if(R0==-1) then
+			restore;
+            [retValAddr] = -1;
+            SP = userSP;
+            [pcb_entry + 9] = 0;
+            ireturn;
+		endif;
+    restore;
+    
+    alias lseek R7;
+    lseek = [OPEN_FILE_TABLE + open_file_table_index*4 + 2];
+
+    alias word R8;
+    word = [[PTBR + 2*((userSP-3)/512)]*512 + ((userSP-3)%512)];
+
+    alias addr R9;
+    addr = (([PTBR + 2 * ((word)/ 512)]) * 512) + ((word) % 512);
+
+    
+    if(lseek==MAX_FILE_SIZE) then
+        //Releasing Inode
+        backup;
+            R1=5;
+            R2=[SYSTEM_STATUS_TABLE + 1];
+            R3=inode_index;
+            call MOD_0;
+        restore;
+
+        [retValAddr] = -2;
+        SP = userSP;
+        [pcb_entry + 9] = 0;
+        ireturn;
+    endif;
+//////
+
+
+
+	if(lseek%512==0 && lseek == [INODE_TABLE + 16 * inode_index + 2 ] ) then
+		alias block_no R10;
+		multipush(R0,R1,R2,R3,R4,R5,R6,R7,R8,R9);
+        // get free block function
+        R1=3;
+        call MOD_2;
+        block_no=R0;
+		multipop(R0,R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+		if(block_no==-1) then
+            //Releasing Inode
+            backup;
+                R1=5;
+                R2=[SYSTEM_STATUS_TABLE + 1];
+                R3=inode_index;
+                call MOD_0;
+            restore;
+
+            [retValAddr] = -2;
+            SP = userSP;
+            [pcb_entry + 9] = 0;
+            ireturn;
+		endif;
+
+		[INODE_TABLE+16*inode_index+lseek/512+8] = block_no;
+	endif;
+
+	alias block_index R11;
+	alias block_offset R12;
+	alias block_no R13;
+
+	block_index = lseek/512;
+	block_no = [INODE_TABLE+16*inode_index+8+block_index];
+	block_offset = lseek%512;
+	backup;
+		R1=1;
+		R2=block_no;
+		R3=block_offset;
+		R4=[[PTBR + 2 * ((userSP - 3) / 512)] * 512 + ((userSP - 3) % 512)];
+
+		call MOD_3;
+
+	restore;
+
+    alias inode_entry R14;
+    inode_entry = INODE_TABLE + 16*inode_index;
+	if(lseek==[inode_entry + 2 ]) then
+		[inode_entry + 2 ]=[inode_entry + 2 ]+1;
+		[ROOT_FILE+8*inode_index+1]=[ROOT_FILE+8*inode_index+1]+1;
+	endif;
+
+    //Incrementing lseek value
+	[OPEN_FILE_TABLE + 4*open_file_table_index + 2]=[OPEN_FILE_TABLE + 4*open_file_table_index + 2]+1;
+
+
+    //Releasing Inode
+    backup;
+        R1=5;
+        R2=[SYSTEM_STATUS_TABLE + 1];
+        R3=inode_index;
+        call MOD_0;
+    restore;
+
+    // return success
+    [retValAddr] = 0;
+    SP = userSP;
+    [pcb_entry + 9] = 0;
+    ireturn;
+
+
 else
-	 alias word R5;
-	 word = [[PTBR + 2 * ((userSP - 3) / 512)] * 512 + ((userSP - 3) % 512)];
-	 
-	// Invoking Terminal Write function
-	 multipush(R0, R1, R2, R3,R4,R5);
-	 R1 = 3;	 						// function number of Terminal Write
-	 R2 = [SYSTEM_STATUS_TABLE + 1]; 	// function number of Terminal Write
-	 R3 = word;							// word to be written
-	 call MOD_4;						// call Device Manager module
-	 multipop(R0,R1,R2,R3,R4,R5);
+    alias word R6;
+    word = [[PTBR + 2 * ((userSP - 3) / 512)] * 512 + ((userSP - 3) % 512)];
+    
+    // Invoking Terminal Write function
+    multipush(R0,R1,R2,R3,R4,R5,R6);
+    R1 = 3;                             // function number of Terminal Write
+    R2 = [SYSTEM_STATUS_TABLE + 1];     // PID of current process
+    R3 = word;                          // word to be written
+    call MOD_4;                         // call Device Manager module
+    // ignore return value in R0
+    multipop(R0,R1,R2,R3,R4,R5,R6);
 
-
-	 alias physicalAddrRetVal R6;
-	 physicalAddrRetVal = ([PTBR + 2 * (userSP - 1)/ 512] * 512) + ((userSP - 1) % 512);
-	 [physicalAddrRetVal] = 0;
+    [retValAddr] = 0;
 endif;
 
-SP = [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13];
-[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+// Switching SP to kernel stack
+SP = [pcb_entry + 13];
+
+
+[pcb_entry + 9] = 0;
+
 ireturn;
